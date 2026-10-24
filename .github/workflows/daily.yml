@@ -5,6 +5,10 @@ on:
     # 13:30 UTC = 9:30am EDT / 8:30am EST, Oct-Jun. hoopR's release files
     # refresh around 11:30 UTC.
     - cron: "30 13 * 10-12,1-6 *"
+  push:
+    # Re-run the backtest and confidence calibration when the Model sheet is published.
+    branches: [main]
+    paths: [web/model.json]
   workflow_dispatch:
     inputs:
       date:
@@ -12,6 +16,10 @@ on:
         required: false
       backfill:
         description: "Rebuild every slate this season up to the date"
+        type: boolean
+        default: false
+      retune:
+        description: "Re-tune the weight schedule (normally Mondays)"
         type: boolean
         default: false
 
@@ -45,7 +53,7 @@ jobs:
       - name: Unit tests
         run: Rscript pipeline/tests/run_tests.R
 
-      - name: Run pipeline
+      - name: Run pipeline (stats, slates, betting lines, backtest inputs)
         env:
           SLATE_DATE: ${{ inputs.date }}
           BACKFILL: ${{ inputs.backfill }}
@@ -55,13 +63,38 @@ jobs:
           if [ "$BACKFILL" = "true" ]; then ARGS+=("--backfill"); fi
           Rscript pipeline/run.R "${ARGS[@]}"
 
-      # Only reached if tests and the pipeline's sanity checks passed, so a
-      # failed run leaves the previous day's data live.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install site dependencies
+        working-directory: web
+        run: npm ci
+
+      - name: Re-tune weight schedule (Mondays)
+        working-directory: web
+        env:
+          RETUNE: ${{ inputs.retune }}
+        run: |
+          if [ "$(date -u +%u)" = "1" ] && [ "${{ github.event_name }}" = "schedule" ] || [ "$RETUNE" = "true" ]; then
+            npx tsx scripts/tune-weights.ts --write
+          else
+            echo "Not Monday; keeping the current schedule."
+          fi
+
+      - name: Backtest and calibrate confidence
+        working-directory: web
+        run: npx tsx scripts/backtest.ts
+
+      # Only reached if every step above passed, so a failed run leaves the
+      # previous data live.
       - name: Commit data
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add web/public/data
+          git add web/public/data pipeline/cache web/model.json
           if git diff --cached --quiet; then
             echo "No data changes."
           else

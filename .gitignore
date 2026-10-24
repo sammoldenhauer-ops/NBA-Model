@@ -3,3 +3,5 @@
 .Rproj.user/
 node_modules/
 .DS_Store
+backtest/
+pipeline/cache/tune-cache.json

@@ -29,24 +29,28 @@ league_inputs <- function(windows) {
   stats::setNames(out, unname(STATS_WINDOWS))
 }
 
-game_json <- function(g) {
+game_json <- function(g, lines = NULL) {
   team <- function(p) list(
     id = g[[paste0(p, "_id")]], abbr = g[[paste0(p, "_abbr")]], name = g[[paste0(p, "_name")]],
     color = g[[paste0(p, "_color")]], logo = g[[paste0(p, "_logo")]],
     final = if (is.na(g[[paste0(p, "_final")]])) NULL else g[[paste0(p, "_final")]]
   )
+  l <- if (!is.null(lines)) lines[lines$game_id == g$game_id, ] else NULL
+  line <- if (!is.null(l) && nrow(l) && !is.na(l$home_spread[1])) {
+    list(home_spread = l$home_spread[1], total = l$total[1], home_ml = l$home_ml[1], away_ml = l$away_ml[1], provider = l$provider[1])
+  } else NULL
   list(game_id = g$game_id, tip_time = g$tip_time, status = g$status, neutral = g$neutral,
-       home = team("home"), away = team("away"))
+       home = team("home"), away = team("away"), line = line)
 }
 
-write_slate_json <- function(date, season, slate, windows, out_dir = CONFIG$out_dir) {
+write_slate_json <- function(date, season, slate, windows, lines = NULL, out_dir = CONFIG$out_dir) {
   dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
   ids <- unique(c(slate$home_id, slate$away_id))
   payload <- list(
     date         = as.character(date),
     season       = season,
     generated_at = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
-    games        = lapply(seq_len(nrow(slate)), function(i) game_json(as.list(slate[i, ]))),
+    games        = lapply(seq_len(nrow(slate)), function(i) game_json(as.list(slate[i, ]), lines)),
     teams        = stats::setNames(lapply(ids, function(id) team_inputs(windows, id)), ids),
     league       = league_inputs(windows)
   )

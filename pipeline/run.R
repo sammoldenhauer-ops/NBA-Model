@@ -14,7 +14,7 @@ script_dir <- local({
   f <- sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value = TRUE))
   if (length(f)) dirname(normalizePath(f)) else "pipeline"
 })
-for (f in c("config.R", "stats.R", "team_games.R", "windows.R", "fetch.R", "export.R", "stats_export.R")) {
+for (f in c("config.R", "stats.R", "team_games.R", "windows.R", "fetch.R", "export.R", "stats_export.R", "lines.R", "backtest_inputs.R")) {
   source(file.path(script_dir, f))
 }
 
@@ -45,6 +45,16 @@ dates <- if (backfill) {
   target_date
 }
 
+# Betting lines: every completed game this season not yet cached, games from the
+# last 3 days again (closing lines), and the slates being written (current lines).
+slate_ids <- unlist(lapply(as.character(dates), function(d) slate_for_date(schedule, d)$game_id))
+done <- schedule[schedule$status_type_completed %in% TRUE & schedule$season_type %in% CONFIG$season_types, ]
+recent <- as.character(done$game_id[as.Date(done$game_date) >= target_date - 3])
+lines <- tryCatch(
+  update_lines(c(as.character(done$game_id), slate_ids), refetch_ids = c(recent, slate_ids)),
+  error = function(e) { message("::warning::Could not update betting lines: ", conditionMessage(e)); read_lines_cache() }
+)
+
 written <- character()
 for (d in as.character(dates)) {
   slate <- slate_for_date(schedule, d)
@@ -58,11 +68,13 @@ for (d in as.character(dates)) {
     message("::warning::", d, ": no stats for team id(s) ", paste(missing, collapse = ", "), "; slate not written")
     next
   }
-  message("Wrote ", write_slate_json(d, season, slate, w), " (", nrow(slate), " games)")
+  message("Wrote ", write_slate_json(d, season, slate, w, lines), " (", nrow(slate), " games)")
   written <- c(written, d)
 }
 
 td <- as.character(target_date)
 write_stats_files(tg, long, compute_windows(long, season, td), season, td, slate = slate_for_date(schedule, td))
 if (length(written)) write_index_json(latest = max(written))
+# This season's point-in-time inputs, so the confidence backtest keeps growing.
+write_backtest_inputs(season, tg[tg$season %in% c(season - 1, season), ])
 message("Done.")

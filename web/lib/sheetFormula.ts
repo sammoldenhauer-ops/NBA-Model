@@ -3,7 +3,7 @@
 // Supports what Google Sheets does for this kind of model:
 //   cell refs A1, $A$1, A$1   ranges B9:B12   numbers, "text", TRUE/FALSE
 //   + - * / ^ & = <> < > <= >=   lists {40,25,30,5}
-//   SUMPRODUCT SUM AVERAGE MIN MAX ROUND ROUNDUP ROUNDDOWN MROUND ABS IF IFERROR
+//   SUMPRODUCT SUM AVERAGE MIN MAX ROUND ROUNDUP ROUNDDOWN MROUND ABS IF IFERROR ISNUMBER VLOOKUP
 //   stat references [Home YTD Points/Game], [Away H/A EFG%], [League Home Points/Game], [Home Team]
 //
 // Like Sheets: an empty cell is 0 in math; text (e.g. "--" for a window with no games)
@@ -311,6 +311,30 @@ function call(f: string, argNodes: Node[], ctx: Ctx): Val {
       throw e;
     }
   }
+  if (f === "VLOOKUP") {
+    // VLOOKUP(key, range, column, [sorted=TRUE]): sorted = last row whose first
+    // column is <= key (Sheets' approximate match); FALSE = exact match.
+    const key = one(evaluate(argNodes[0], ctx));
+    const rng = argNodes[1];
+    if (rng?.k !== "range") throw new SheetError("#VALUE!", "VLOOKUP needs a range like $O$8:$S$17");
+    const col = num(one(evaluate(argNodes[2], ctx)));
+    if (col < 1 || col > rng.c2 - rng.c1 + 1) throw new SheetError("#REF!", "VLOOKUP column is outside the range");
+    const sorted = argNodes[3] ? Boolean(numOr0(one(evaluate(argNodes[3], ctx)))) : true;
+    let hit = -1;
+    for (let r = rng.r1; r <= rng.r2; r++) {
+      const v = ctx.cell(rng.c1, r);
+      if (v == null || v === "") continue;
+      if (sorted) {
+        if (typeof v === "number" && typeof key === "number" ? v <= key : String(v) <= String(key)) hit = r;
+        else break;
+      } else if (v === key || String(v).toLowerCase() === String(key).toLowerCase()) {
+        hit = r;
+        break;
+      }
+    }
+    if (hit < 0) throw new SheetError("#N/A", `VLOOKUP: no match for ${key}`);
+    return ctx.cell(rng.c1 + col - 1, hit);
+  }
   if (f === "IF") {
     const cond = one(evaluate(argNodes[0], ctx));
     const pick = typeof cond === "string" ? cond !== "" : Boolean(numOr0(cond as Scalar) || cond === true);
@@ -318,6 +342,10 @@ function call(f: string, argNodes: Node[], ctx: Ctx): Val {
     return n ? one(evaluate(n, ctx)) : pick;
   }
   const args = argNodes.map((n) => evaluate(n, ctx));
+  if (f === "ISNUMBER") {
+    const a = args[0] ?? null;
+    return Array.isArray(a) ? a.map((x) => typeof x === "number") : typeof a === "number";
+  }
   const arg = (i: number, name: string): number => {
     if (args[i] === undefined) throw new SheetError("#N/A", `${name} is missing an argument`);
     return num(one(args[i]));
@@ -359,7 +387,7 @@ function call(f: string, argNodes: Node[], ctx: Ctx): Val {
   throw new SheetError("#NAME?", `Unknown function ${f}`);
 }
 
-export const FUNCTIONS = ["SUMPRODUCT", "SUM", "AVERAGE", "MIN", "MAX", "ROUND", "ROUNDUP", "ROUNDDOWN", "MROUND", "ABS", "IF", "IFERROR"];
+export const FUNCTIONS = ["SUMPRODUCT", "SUM", "AVERAGE", "MIN", "MAX", "ROUND", "ROUNDUP", "ROUNDDOWN", "MROUND", "ABS", "IF", "IFERROR", "ISNUMBER", "VLOOKUP"];
 
 // ---- copy / paste: shift relative references --------------------------------
 

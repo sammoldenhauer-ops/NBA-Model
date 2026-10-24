@@ -1,53 +1,41 @@
 import Link from "next/link";
-import type { Game, Slate, Team } from "@/lib/data";
-import { fmtDateLong, fmtSpread, fmtTip, teamColor } from "@/lib/format";
+import type { ConfidenceFile, Slate } from "@/lib/data";
+import { scoreConfidence } from "@/lib/confidence";
+import { fmtDateLong } from "@/lib/format";
 import { scoreGame, slateSource, type SheetModel } from "@/lib/sheet";
 import DatePicker from "./DatePicker";
+import SlateBoard, { type Card } from "./SlateBoard";
 
-type GameResult = { home_score: number | null; away_score: number | null; home_spread: number | null; total: number | null };
+type Props = {
+  slate: Slate;
+  dates: string[];
+  model: SheetModel;
+  statLabels: string[];
+  confidence: ConfidenceFile | null;
+  modelHash: string;
+};
 
-function TeamRow({ team, score, spread, isHome }: { team: Team; score: number | null; spread: number | null; isHome: boolean }) {
-  return (
-    <div className="team-row">
-      <span className="swatch" style={{ background: teamColor(team.color) }} />
-      {team.logo && <img className="logo" src={team.logo} alt="" width={28} height={28} />}
-      <span className="team-name">
-        <span className="abbr">{team.abbr}</span>
-        <span className="full muted">{team.name}</span>
-        {isHome && <span className="tag">home</span>}
-      </span>
-      <span className="spread">{spread == null ? "—" : fmtSpread(spread)}</span>
-      <span className="score">{score == null ? "—" : score.toFixed(1)}</span>
-      {team.final != null && <span className="final">{team.final}</span>}
-    </div>
-  );
-}
+export default function SlateView({ slate, dates, model, statLabels, confidence, modelHash }: Props) {
+  const cards: Card[] = slate.games.map((g) => {
+    const r = scoreGame(model, slateSource(slate, g), statLabels);
+    const conf =
+      confidence && r.home_score != null && r.away_score != null
+        ? scoreConfidence(confidence.model, {
+            proj_home: r.home_score,
+            proj_away: r.away_score,
+            line_spread: g.line?.home_spread ?? null,
+            line_total: g.line?.total ?? null,
+            home_games: slate.teams[g.home.id]?.YTD.games ?? 0,
+            away_games: slate.teams[g.away.id]?.YTD.games ?? 0,
+          })
+        : null;
+    return { game: g, home_score: r.home_score, away_score: r.away_score, home_spread: r.home_spread, total: r.total, conf };
+  });
+  const anyScore = cards.some((c) => c.home_score != null && c.away_score != null);
+  const stale = confidence && confidence.model.model_hash !== modelHash
+    ? "The Model sheet changed since confidence was last calibrated; the percentages update on the next daily run."
+    : null;
 
-function GameCard({ date, game, r }: { date: string; game: Game; r: GameResult }) {
-  const isFinal = game.home.final != null && game.away.final != null;
-  return (
-    <Link className="card game-card" href={`/game/${date}/${game.game_id}`}>
-      <div className="card-head">
-        <span className="muted small">{isFinal ? "Final" : fmtTip(game.tip_time)}</span>
-        <span className="muted small">
-          Total <strong className="fg">{r.total == null ? "—" : r.total.toFixed(1)}</strong>
-        </span>
-      </div>
-      <div className="cols-head muted small">
-        <span />
-        <span className="spread">Spread</span>
-        <span className="score">Proj</span>
-        {isFinal && <span className="final">Actual</span>}
-      </div>
-      <TeamRow team={game.away} score={r.away_score} spread={r.home_spread == null ? null : -r.home_spread} isHome={false} />
-      <TeamRow team={game.home} score={r.home_score} spread={r.home_spread} isHome={!game.neutral} />
-    </Link>
-  );
-}
-
-export default function SlateView({ slate, dates, model, statLabels }: { slate: Slate; dates: string[]; model: SheetModel; statLabels: string[] }) {
-  const results = slate.games.map((g) => scoreGame(model, slateSource(slate, g), statLabels));
-  const anyScore = results.some((r) => r.home_score != null && r.away_score != null);
   return (
     <>
       <div className="slate-head">
@@ -65,11 +53,7 @@ export default function SlateView({ slate, dates, model, statLabels }: { slate: 
           No projections yet. The slate reads the score cells set on the <Link href="/model">Model</Link> page.
         </p>
       )}
-      <div className="grid">
-        {slate.games.map((g, i) => (
-          <GameCard key={g.game_id} date={slate.date} game={g} r={results[i]} />
-        ))}
-      </div>
+      <SlateBoard date={slate.date} cards={cards} staleNote={stale} />
     </>
   );
 }

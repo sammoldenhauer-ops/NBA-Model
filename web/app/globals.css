@@ -237,3 +237,26 @@ table.sheet td:has(.cell-edit) { padding: 0; overflow: visible; }
   font: 0.8rem ui-monospace, Consolas, monospace; background: var(--surface); color: var(--fg); position: relative; z-index: 4;
 }
 main.container:has(.sheet-page) { max-width: 1800px; }
+
+/* Slate picks + filters */
+.picks { border-top: 1px solid var(--border); margin-top: 6px; padding-top: 6px; }
+.pick-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.chip { font-size: 0.74rem; border: 1px solid var(--border); border-radius: 999px; padding: 1px 8px; white-space: nowrap; color: var(--fg); }
+.chip b { font-variant-numeric: tabular-nums; }
+.chip.conf-hi { border-color: #16a34a; background: color-mix(in srgb, #16a34a 12%, transparent); }
+.chip.conf-mid { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.chip.conf-lo { color: var(--muted); }
+.chip.plain { color: var(--muted); }
+.filters { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; margin-bottom: 12px; }
+.filters label { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.num-in {
+  width: 58px; font: inherit; font-size: 0.85rem; color: var(--fg); background: var(--bg);
+  border: 1px solid var(--border); border-radius: 6px; padding: 3px 6px;
+}
+.filters input[type=range] { width: 120px; accent-color: var(--accent); }
+
+.conf-card { margin: 14px 0; }
+.conf-card h3 { margin: 0 0 4px; font-size: 1rem; }
+.two-col { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+.two-col table { border: 1px solid var(--border); border-radius: 8px; }
+.pos { color: #16a34a; }

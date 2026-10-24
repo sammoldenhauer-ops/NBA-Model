@@ -23,6 +23,8 @@ export type Team = {
   final: number | null;
 };
 
+export type Line = { home_spread: number; total: number | null; home_ml: number | null; away_ml: number | null; provider: string | null };
+
 export type Game = {
   game_id: string;
   tip_time: string;
@@ -30,6 +32,7 @@ export type Game = {
   neutral: boolean;
   home: Team;
   away: Team;
+  line?: Line | null;
 };
 
 // One slate: the games and the stat inputs as of that date (games before it).
@@ -89,4 +92,16 @@ export function getStats(): StatsData | null {
 // Stat names and formats, for pickers and tables.
 export function getStatList(): StatMeta[] {
   return getStats()?.stats ?? [];
+}
+
+// Calibrated confidence model + backtest report (web/scripts/backtest.ts).
+import type { ConfidenceModel, Validation } from "./confidence";
+export type ConfidenceFile = {
+  generated_at: string;
+  model: ConfidenceModel;
+  validation: Validation[];
+  accuracy: Record<string, number>;
+};
+export function getConfidence(): ConfidenceFile | null {
+  return readJson<ConfidenceFile>("confidence.json");
 }

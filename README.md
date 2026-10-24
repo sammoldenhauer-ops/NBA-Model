@@ -81,6 +81,21 @@ Possessions use 0.475 x FTA and seasons include play-in and playoff games, both 
 Still open: whether rate stats within a window should be
 ratio of totals (current) or average of game rates (`pipeline/config.R`).
 
+## Weight schedule and confidence
+
+- **Weight schedule.** The Weight cells look up a table (O7:S17 in the Model sheet) by the two teams' average
+  games played, so weights move from mostly last season in week 1 toward this season as games accumulate.
+  `web/scripts/tune-weights.ts` picks each stage's weights by backtest over the last three seasons (every
+  YTD/L3/H/A/Prior combination, scored on margin + total error, checked leave-one-season-out). The daily
+  workflow re-tunes on Mondays. Weighted rows skip windows with no games instead of counting them as 0.
+- **Confidence.** `web/scripts/backtest.ts` re-projects every game since 2023-24 through the published sheet with
+  point-in-time stats, joins sportsbook lines (`pipeline/cache/lines.csv`, via ESPN), and calibrates three
+  scores: against the spread, over/under, and winner, plus accuracy bands. A score that doesn't beat a flat guess
+  on held-out seasons falls back to its base rate and is labelled "no proven edge". It re-runs daily and whenever
+  `web/model.json` changes. Report: the site's **Confidence** page.
+- Historical inputs live in `pipeline/cache/inputs_<season>.ndjson.gz`; rebuild them with
+  `Rscript pipeline/backtest_inputs.R 2024 2025 2026` after changing stat definitions.
+
 ## Reproducing the spreadsheet
 
 [docs/SHEET_FORMULAS.md](docs/SHEET_FORMULAS.md) has the spreadsheet's formulas (reverse-engineered from `docs/sheet_export_lal_bkn.csv`) for reference when rebuilding them on the Model page.
