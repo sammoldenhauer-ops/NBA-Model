@@ -214,3 +214,28 @@ export function formatCell(r: CellResult, fmt: CellFormat | undefined): string {
 
 export const statFormatToCell = (f: StatFormat): CellFormat => f;
 export { WINDOWS };
+
+// ---- drafts ----------------------------------------------------------------
+
+// Carry a draft's edits (draft vs the version it started from) onto a newer
+// published sheet, so publishing a stale draft never drops newer rows.
+export function rebaseModel(base: SheetModel, draft: SheetModel, latest: SheetModel): { model: SheetModel; changed: number } {
+  const out: SheetModel = JSON.parse(JSON.stringify(latest));
+  let changed = 0;
+  for (const part of ["cells", "formats", "styles"] as const) {
+    const b = base[part] as Record<string, string>;
+    const d = draft[part] as Record<string, string>;
+    const o = out[part] as Record<string, string>;
+    for (const k of new Set([...Object.keys(b), ...Object.keys(d)])) {
+      if (b[k] === d[k]) continue;
+      if (k in d) o[k] = d[k];
+      else delete o[k];
+      changed++;
+    }
+  }
+  if (JSON.stringify(base.outputs) !== JSON.stringify(draft.outputs)) out.outputs = draft.outputs;
+  for (const k of Object.keys(draft.widths)) if (base.widths[k] !== draft.widths[k]) out.widths[k] = draft.widths[k];
+  out.rows = Math.max(latest.rows, draft.rows - base.rows + latest.rows);
+  out.cols = Math.max(latest.cols, draft.cols);
+  return { model: out, changed };
+}

@@ -3,12 +3,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
 import type { Slate, StatMeta, StatsData } from "@/lib/data";
 import { fmtSpread } from "@/lib/format";
-import { evaluator, formatCell, scoreGame, slateSource, statsSource, type CellFormat, type SheetModel } from "@/lib/sheet";
+import { evaluator, formatCell, rebaseModel, scoreGame, slateSource, statsSource, type CellFormat, type SheetModel } from "@/lib/sheet";
 import { addr, FUNCTIONS, parseAddr, shiftFormula } from "@/lib/sheetFormula";
 import { WINDOWS } from "@/lib/windows";
 import SheetGrid, { type CellView, type Rect } from "./SheetGrid";
 
-const DRAFT_KEY = "nba-model-sheet-draft-v2";
+// v3 drafts remember the published version they started from (base).
+const DRAFT_KEY = "nba-model-sheet-draft-v3";
 const UPLOAD_URL = "https://github.com/sammoldenhauer-ops/NBA-Model/upload/main/web";
 const FORMATS: { f: CellFormat; label: string }[] = [
   { f: "general", label: "Auto" },
@@ -23,18 +24,19 @@ const FORMATS: { f: CellFormat; label: string }[] = [
 type Pos = { row: number; col: number };
 type Editing = { row: number; col: number; text: string; where: "cell" | "bar" };
 
-function readDraft(): SheetModel | null {
+type Draft = { base: SheetModel; model: SheetModel };
+function readDraft(): Draft | null {
   try {
     const s = localStorage.getItem(DRAFT_KEY);
-    const m = s ? (JSON.parse(s) as SheetModel) : null;
-    return m?.version === 2 ? m : null;
+    const d = s ? (JSON.parse(s) as Draft) : null;
+    return d?.model?.version === 2 && d.base?.version === 2 ? d : null;
   } catch {
     return null;
   }
 }
-function writeDraft(m: SheetModel | null) {
+function writeDraft(d: Draft | null) {
   try {
-    if (m) localStorage.setItem(DRAFT_KEY, JSON.stringify(m));
+    if (d) localStorage.setItem(DRAFT_KEY, JSON.stringify(d));
     else localStorage.removeItem(DRAFT_KEY);
   } catch {
     /* storage unavailable: edits still work for this visit */
@@ -55,6 +57,7 @@ export default function SheetEditor({ published, stats, slate }: { published: Sh
 
   const [model, setModel] = useState<SheetModel>(published);
   const [loaded, setLoaded] = useState(false);
+  const [rebased, setRebased] = useState<number | null>(null);
   const history = useRef<SheetModel[]>([]);
   const [active, setActive] = useState<Pos>({ row: 3, col: 1 });
   const [anchor, setAnchor] = useState<Pos>({ row: 3, col: 1 });
@@ -75,13 +78,22 @@ export default function SheetEditor({ published, stats, slate }: { published: Sh
 
   useEffect(() => {
     const d = readDraft();
-    if (d && JSON.stringify(d) !== JSON.stringify(published)) setModel(d);
+    if (d) {
+      if (JSON.stringify(d.base) === JSON.stringify(published)) {
+        setModel(d.model);
+      } else {
+        // The published sheet changed since this draft started: carry the edits over.
+        const r = rebaseModel(d.base, d.model, published);
+        setModel(r.model);
+        setRebased(r.changed);
+      }
+    }
     setLoaded(true);
   }, [published]);
   const dirty = JSON.stringify(model) !== JSON.stringify(published);
   useEffect(() => {
-    if (loaded) writeDraft(dirty ? model : null);
-  }, [model, dirty, loaded]);
+    if (loaded) writeDraft(dirty ? { base: published, model } : null);
+  }, [model, dirty, loaded, published]);
 
   const src = useMemo(() => (stats ? statsSource(stats, homeId, awayId) : null), [stats, homeId, awayId]);
   const get = useMemo(() => (src ? evaluator(model, src, labels) : null), [model, src, labels]);
@@ -384,6 +396,13 @@ export default function SheetEditor({ published, stats, slate }: { published: Sh
           )}
         </span>
       </div>
+
+      {rebased != null && (
+        <p className="notice small">
+          The published sheet changed since you started editing. Your {rebased} edited cell{rebased === 1 ? "" : "s"} were carried over
+          onto the latest version.
+        </p>
+      )}
 
       <div className="formula-bar">
         <span className="addr-box">{selLabel}</span>
