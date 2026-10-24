@@ -3,7 +3,8 @@
 #   Rscript pipeline/run.R --date=2026-10-23    # a specific date
 #   Rscript pipeline/run.R --backfill           # every slate this season up to the date
 #
-# Run from the repo root. Exits non-zero (and writes nothing) if any sanity check fails.
+# Run from the repo root. Always writes the raw stat tables; a slate whose projections
+# fail the sanity checks is not written (previous slate stays live).
 
 suppressPackageStartupMessages({
   library(dplyr)
@@ -13,7 +14,7 @@ script_dir <- local({
   f <- sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value = TRUE))
   if (length(f)) dirname(normalizePath(f)) else "pipeline"
 })
-for (f in c("config.R", "stats.R", "team_games.R", "windows.R", "model.R", "fetch.R", "export.R")) {
+for (f in c("config.R", "stats.R", "team_games.R", "windows.R", "model.R", "fetch.R", "export.R", "stats_export.R")) {
   source(file.path(script_dir, f))
 }
 
@@ -81,20 +82,32 @@ for (d in as.character(dates)) {
                     proj$score$home_spread, proj$score$total, proj$possessions))
     game_json(g, proj)
   })
-  if (backfill && any(startsWith(problems, paste0(d, ": ")))) {
+  if (any(startsWith(problems, paste0(d, ": ")))) {
     message("  ", d, ": skipped, sanity checks failed")   # backfill keeps the dates that pass
   } else {
     outputs[[d]] <- games
   }
 }
 
+# Raw stat tables are written every run, even when a projection fails its checks.
+td <- as.character(target_date)
+write_stats_files(tg, long, compute_windows(long, season, td), season, td,
+                  slate = slate_for_date(schedule, td), projections = outputs[[td]])
+
 if (length(problems) && !backfill) {
-  message("\nSanity checks FAILED; nothing written:\n  ", paste(problems, collapse = "\n  "))
-  quit(status = 1)
+  # Keep yesterday's projections live; flag the run in the Actions log.
+  message("::warning::Projection sanity checks failed for ", td, "; slate not updated.
+  ",
+          paste(problems, collapse = "
+  "))
+  quit(status = 0)
 }
-if (length(problems)) message("\nSkipped dates:\n  ", paste(problems, collapse = "\n  "))
+if (length(problems)) message("
+Skipped dates:
+  ", paste(problems, collapse = "
+  "))
 if (!length(outputs)) {
-  message("No games on any requested date; nothing written.")
+  message("No games on any requested date; no slate written.")
   quit(status = 0)
 }
 

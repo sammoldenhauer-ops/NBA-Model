@@ -27,6 +27,8 @@ build_team_games <- function(box, season_types = CONFIG$season_types) {
                        "team_abbreviation", "team_home_away", BOX_COLS), names(box))
   if (length(missing)) stop("Box score is missing columns: ", paste(missing, collapse = ", "))
 
+  if (!"team_display_name" %in% names(box)) box$team_display_name <- box$team_abbreviation
+
   b <- box |>
     dplyr::filter(season_type %in% season_types) |>
     dplyr::transmute(
@@ -35,11 +37,15 @@ build_team_games <- function(box, season_types = CONFIG$season_types) {
       game_date = as.Date(game_date),
       team_id   = as.character(team_id),
       team      = team_abbreviation,
+      team_name = team_display_name,
       home_away = tolower(team_home_away),
       dplyr::across(dplyr::all_of(unname(BOX_COLS)), as.numeric)
     ) |>
     dplyr::rename(dplyr::all_of(BOX_COLS)) |>
-    dplyr::distinct(game_id, team_id, .keep_all = TRUE)
+    dplyr::distinct(game_id, team_id, .keep_all = TRUE) |>
+    # ESPN's 30 franchises have ids 1-30; drop All-Star teams (WORLD, STARS, ...),
+    # which hoopR labels as regular season.
+    dplyr::filter(suppressWarnings(as.integer(team_id)) %in% 1:30)
 
   # Drop games without a complete box for both teams (postponed / partial rows).
   complete <- stats::complete.cases(b[, names(BOX_COLS)])

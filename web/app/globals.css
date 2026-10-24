@@ -50,7 +50,8 @@ h2 { font-size: 1.1rem; margin: 2rem 0 0.5rem; }
 .fg { color: var(--fg); }
 
 .site-header { background: var(--surface); border-bottom: 1px solid var(--border); margin-bottom: 1.5rem; }
-.site-header .container { padding-top: 14px; padding-bottom: 14px; }
+.site-header .container { padding-top: 14px; padding-bottom: 14px; display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
+.nav { display: flex; gap: 16px; font-size: 0.9rem; }
 .brand { font-weight: 700; color: var(--fg); letter-spacing: 0.01em; }
 .footer { padding-top: 2rem; padding-bottom: 2rem; }
 
@@ -136,3 +137,23 @@ table.model .stat-head th {
 table.model .weighted td { background: var(--weighted); font-weight: 600; }
 td.pos { color: var(--above); }
 td.neg { color: var(--below); }
+
+/* Stats page */
+.tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.tab, .copy {
+  font: inherit; font-size: 0.85rem; cursor: pointer; color: var(--fg);
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 5px 12px;
+}
+.tab.active { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.copy { padding: 2px 8px; font-size: 0.78rem; }
+.stats-wrap { max-height: 75vh; }
+table.stats td { font-size: 0.82rem; border-top: 1px solid var(--border); }
+table.stats th.sortable { cursor: pointer; user-select: none; }
+table.stats th.sortable:hover { color: var(--accent); }
+.sticky-col { position: sticky; left: 0; background: var(--surface); z-index: 1; }
+thead .sticky-col { z-index: 2; background: var(--head); }
+tfoot td { position: sticky; bottom: 0; }
+tfoot .sticky-col { z-index: 2; }
+table.files td { vertical-align: top; }
+td.wrap { white-space: normal; min-width: 220px; }
+code { font-family: ui-monospace, Consolas, monospace; color: var(--muted); }

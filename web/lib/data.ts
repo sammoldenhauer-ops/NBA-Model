@@ -99,3 +99,22 @@ export function getGame(date: string, gameId: string): { slate: Slate; game: Gam
   const game = slate?.games.find((g) => g.game_id === gameId);
   return slate && game ? { slate, game } : null;
 }
+
+// Raw stat tables written by pipeline/stats_export.R.
+export type StatsRow = Record<string, string | number | null>;
+
+export type StatsData = {
+  as_of: string;
+  season: number;
+  generated_at: string;
+  league_avg: string;
+  rate_method: string;
+  stats: { id: string; label: string; fmt: StatFormat }[];
+  windows: string[];
+  team_stats: StatsRow[];
+  league_averages: StatsRow[];
+};
+
+export function getStats(): StatsData | null {
+  return readJson<StatsData>(path.join("stats", "stats.json"));
+}

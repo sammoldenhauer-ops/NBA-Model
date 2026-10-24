@@ -21,6 +21,20 @@ web/             Next.js site (reads web/public/data at build time)
 .github/workflows/daily.yml
 ```
 
+## Raw stat tables
+
+Every run writes the model's inputs to `web/public/data/stats/` (overwritten daily, history in git):
+
+| File | Contents |
+|---|---|
+| `team_stats.csv` | One row per team per window (YTD, L3, Home, Away, Prior) with games played and all 33 stats |
+| `league_averages.csv` | League average per window (mean of the 30 teams) |
+| `team_games.csv` | Every team-game this season and last: box score, opponent box, possessions, per-game stats |
+| `slate.csv` | Today's games, tip times (UTC), and the model's projection |
+
+On the live site they're at `/data/stats/<file>`. The **Team stats** page lists them with a ready-made
+`=IMPORTDATA("…")` formula for Google Sheets. Rates are decimals (0.523 = 52.3%).
+
 ## Running locally
 
 Requires R 4.4+ with `hoopR dplyr tibble jsonlite testthat`, and Node 20+.

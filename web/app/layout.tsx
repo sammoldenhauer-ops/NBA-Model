@@ -16,6 +16,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <Link href="/" className="brand">
               NBA Matchup Model
             </Link>
+            <nav className="nav">
+              <Link href="/">Slate</Link>
+              <Link href="/stats">Team stats</Link>
+            </nav>
           </div>
         </header>
         <main className="container">{children}</main>

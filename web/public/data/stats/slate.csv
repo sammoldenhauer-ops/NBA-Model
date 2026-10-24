@@ -1,0 +1,13 @@
+"date","tip_time_utc","game_id","away","home","away_name","home_name","proj_away","proj_home","home_spread","total","possessions"
+"2026-10-23","2026-10-23T20:00Z","401909848","CHI","MIL","Chicago Bulls","Milwaukee Bucks",108.5,133.5,-25,242,108.105
+"2026-10-23","2026-10-23T23:00Z","401909095","NY","BOS","New York Knicks","Boston Celtics",101.5,103.5,-2,205,103.653
+"2026-10-23","2026-10-23T23:00Z","401909843","ATL","CHA","Atlanta Hawks","Charlotte Hornets",132,118.5,13.5,250.5,107.74
+"2026-10-23","2026-10-23T23:00Z","401909844","DAL","IND","Dallas Mavericks","Indiana Pacers",120.5,134.5,-14,255,103.681
+"2026-10-23","2026-10-23T23:00Z","401909845","MIN","ORL","Minnesota Timberwolves","Orlando Magic",136.5,114.5,22,251,110.048
+"2026-10-23","2026-10-23T23:00Z","401909846","TOR","WSH","Toronto Raptors","Washington Wizards",124,102,22,226,108.124
+"2026-10-23","2026-10-24T00:00Z","401909847","DET","MIA","Detroit Pistons","Miami Heat",129.5,104,25.5,233.5,104.858
+"2026-10-23","2026-10-24T01:30Z","401909096","HOU","SA","Houston Rockets","San Antonio Spurs",127,99.5,27.5,226.5,104.104
+"2026-10-23","2026-10-24T01:30Z","401909849","NO","UTAH","New Orleans Pelicans","Utah Jazz",130,110,20,240,105.186
+"2026-10-23","2026-10-24T02:00Z","401909850","MEM","GS","Memphis Grizzlies","Golden State Warriors",125,95,30,220,103.397
+"2026-10-23","2026-10-24T02:00Z","401909851","LAC","LAL","LA Clippers","Los Angeles Lakers",108,106,2,214,102.728
+"2026-10-23","2026-10-24T02:00Z","401909852","POR","SAC","Portland Trail Blazers","Sacramento Kings",112.5,71.5,41,184,101.615

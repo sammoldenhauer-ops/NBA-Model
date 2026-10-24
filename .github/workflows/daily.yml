@@ -37,6 +37,7 @@ jobs:
           packages: |
             any::hoopR
             any::dplyr
+            any::tidyr
             any::tibble
             any::jsonlite
             any::testthat
