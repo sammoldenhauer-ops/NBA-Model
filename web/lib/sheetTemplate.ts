@@ -164,7 +164,7 @@ export function buildTemplate(weights = DEFAULT_WEIGHTS): SheetModel {
     set(`${col}5`, `=L${weightedRow[id]}`, "dec1");
   }
 
-  return {
+  const model: SheetModel = {
     version: 2,
     cols: 14,
     rows: row + 20,
@@ -174,4 +174,59 @@ export function buildTemplate(weights = DEFAULT_WEIGHTS): SheetModel {
     widths: { A: 210 },
     outputs: { home_score: "B4", away_score: "B5" },
   };
+  addInjurySection(model);
+  return model;
+}
+
+// Injuries section: who's out, their value, and a score adjustment that the score
+// cells add. Method 1 (default) = value lost x scale, split between the two scores
+// (tested best by backtest); 2 = Sam's method, BPM/2 off the team and BPM/2 to the
+// opponent; 0 = off. Returns the row of the adjustment cells.
+export function addInjurySection(m: SheetModel): number {
+  const existing = Object.entries(m.cells).find(([, v]) => v === "Injuries");
+  if (existing) return Number(existing[0].slice(1)) + 9;
+  const maxRow = Math.max(...Object.keys(m.cells).map((a) => Number(a.replace(/^[A-Z]+/, ""))));
+  const r = maxRow + 2;
+  const set = (a: string, v: string, f?: CellFormat) => {
+    m.cells[a] = v;
+    if (f) m.formats[a] = f;
+  };
+  m.styles[String(r)] = "header";
+  set(`A${r}`, "Injuries");
+  set(`B${r}`, "Home");
+  set(`C${r}`, "Away");
+  set(`D${r}`, "Notes");
+  const rows: [string, string, CellFormat | undefined][] = [
+    ["Out", "List", undefined],
+    ["Day-to-day (not counted)", "DTD", undefined],
+    ["Players out", "Count", "int"],
+    ["Minutes out", "Minutes", "dec1"],
+    ["Value lost (net pts)", "Value", "dec2"],
+    ["Sum of BPM out", "BPM", "dec1"],
+  ];
+  rows.forEach(([label, field, f], i) => {
+    set(`A${r + 1 + i}`, label);
+    set(`B${r + 1 + i}`, `=[Home Injury ${field}]`, f);
+    set(`C${r + 1 + i}`, `=[Away Injury ${field}]`, f);
+  });
+  const val = r + 5, bpm = r + 6, method = r + 7, scale = r + 8, adj = r + 9;
+  set(`A${method}`, "Method");
+  set(`B${method}`, "1", "int");
+  set(`D${method}`, "1 = value lost x scale (tested best) · 2 = BPM/2 off team, BPM/2 to opponent · 0 = off");
+  set(`A${scale}`, "Scale (method 1)");
+  set(`B${scale}`, "0.6", "dec2");
+  set(`D${scale}`, "0.6 fit best on 2023-26 backtests (teammates absorb part of the loss)");
+  m.styles[String(adj)] = "bold";
+  set(`A${adj}`, "Score adjustment");
+  set(`B${adj}`, `=IF($B$${method}=1,($C$${val}-$B$${val})*$B$${scale}/2,IF($B$${method}=2,($C$${bpm}-$B$${bpm})/2,0))`, "dec2");
+  set(`C${adj}`, `=IF($B$${method}=1,($B$${val}-$C$${val})*$B$${scale}/2,IF($B$${method}=2,($B$${bpm}-$C$${bpm})/2,0))`, "dec2");
+  m.widths = { ...m.widths, D: Math.max(m.widths.D ?? 84, 84) };
+  m.rows = Math.max(m.rows, adj + 10);
+  // Score cells add the adjustment: =MROUND(x,0.5) -> =MROUND(x+B<adj>,0.5)
+  for (const [cell, col] of [["B4", "B"], ["B5", "C"]] as const) {
+    const f = m.cells[cell] ?? "";
+    const mm = /^=MROUND\((.*),0\.5\)$/.exec(f.replace(/\s+/g, ""));
+    if (mm && !f.includes(`${col}${adj}`)) m.cells[cell] = `=MROUND(${mm[1]}+${col}${adj},0.5)`;
+  }
+  return adj;
 }

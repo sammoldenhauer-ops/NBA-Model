@@ -14,7 +14,7 @@ script_dir <- local({
   f <- sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value = TRUE))
   if (length(f)) dirname(normalizePath(f)) else "pipeline"
 })
-for (f in c("config.R", "stats.R", "team_games.R", "windows.R", "fetch.R", "export.R", "stats_export.R", "lines.R", "backtest_inputs.R")) {
+for (f in c("config.R", "stats.R", "team_games.R", "windows.R", "fetch.R", "export.R", "stats_export.R", "lines.R", "backtest_inputs.R", "injuries.R")) {
   source(file.path(script_dir, f))
 }
 
@@ -55,6 +55,32 @@ lines <- tryCatch(
   error = function(e) { message("::warning::Could not update betting lines: ", conditionMessage(e)); read_lines_cache() }
 )
 
+# Injuries: actual absences for finished games (history), ESPN's report for today.
+today_et <- as.Date(format(Sys.time(), "%Y-%m-%d", tz = "America/New_York"))
+pp <- tryCatch(prepare_player_games(c(season - 1, season), tg), error = function(e) { message("::warning::Player data unavailable: ", conditionMessage(e)); NULL })
+inj_hist <- if (!is.null(pp)) build_injury_features(season, pp$pg, pp$b) else NULL
+if (!is.null(inj_hist)) write_injury_cache(season, inj_hist)
+inj_live <- if (!is.null(pp)) live_injury_report(season, pp$pg, max(target_date, today_et)) else NULL
+injuries_for <- function(d, slate) {
+  ids <- unique(c(slate$home_id, slate$away_id))
+  out <- lapply(seq_len(nrow(slate)), function(i) NULL)
+  res <- list()
+  for (side in c("home", "away")) for (i in seq_len(nrow(slate))) {
+    tid <- slate[[paste0(side, "_id")]][i]
+    gid <- slate$game_id[i]
+    h <- if (!is.null(inj_hist)) inj_hist[inj_hist$game_id == gid & inj_hist$team_id == tid, ] else NULL
+    res[[tid]] <- if (!is.null(h) && nrow(h)) {
+      list(value = h$vorp[1], bpm = h$sam[1], minutes = h$out_min[1], count = h$out_n[1], names = gsub("; ", ", ", h$out_names[1]), dtd = "", source = "played")
+    } else if (!is.null(inj_live) && !is.null(inj_live[[tid]]) && as.Date(d) >= today_et) {
+      c(inj_live[[tid]], list(source = "espn"))
+    } else {
+      list(value = 0, bpm = 0, minutes = 0, count = 0, names = "", dtd = "", source = if (as.Date(d) >= today_et && !is.null(inj_live)) "espn" else "none")
+    }
+  }
+  res
+}
+if (!is.null(inj_live)) jsonlite::write_json(inj_live, file.path(CONFIG$out_dir, "stats", "injuries.json"), auto_unbox = TRUE)
+
 written <- character()
 for (d in as.character(dates)) {
   slate <- slate_for_date(schedule, d)
@@ -68,7 +94,7 @@ for (d in as.character(dates)) {
     message("::warning::", d, ": no stats for team id(s) ", paste(missing, collapse = ", "), "; slate not written")
     next
   }
-  message("Wrote ", write_slate_json(d, season, slate, w, lines), " (", nrow(slate), " games)")
+  message("Wrote ", write_slate_json(d, season, slate, w, lines, injuries_for(d, slate)), " (", nrow(slate), " games)")
   written <- c(written, d)
 }
 

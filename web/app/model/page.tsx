@@ -1,5 +1,5 @@
 import SheetEditor from "@/components/SheetEditor";
-import { getLatest, getStats } from "@/lib/data";
+import { getInjuries, getLatest, getStats } from "@/lib/data";
 import { getModel } from "@/lib/modelFile";
 
 export const metadata = { title: "Model · NBA Matchup Model" };
@@ -15,7 +15,7 @@ export default function ModelPage() {
           </p>
         </div>
       </div>
-      <SheetEditor published={getModel()} stats={getStats()} slate={getLatest()} />
+      <SheetEditor published={getModel()} stats={getStats()} slate={getLatest()} injuries={getInjuries()} />
     </div>
   );
 }

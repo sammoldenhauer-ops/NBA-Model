@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
-import type { Slate, StatMeta, StatsData } from "@/lib/data";
+import type { Slate, StatMeta, StatsData, TeamInjury } from "@/lib/data";
 import { fmtSpread } from "@/lib/format";
 import { evaluator, formatCell, rebaseModel, scoreGame, slateSource, statsSource, type CellFormat, type SheetModel } from "@/lib/sheet";
 import { addr, FUNCTIONS, parseAddr, shiftFormula } from "@/lib/sheetFormula";
@@ -47,7 +47,7 @@ const rectOf = (a: Pos, b: Pos): Rect => ({
   r1: Math.min(a.row, b.row), c1: Math.min(a.col, b.col), r2: Math.max(a.row, b.row), c2: Math.max(a.col, b.col),
 });
 
-export default function SheetEditor({ published, stats, slate }: { published: SheetModel; stats: StatsData | null; slate: Slate | null }) {
+export default function SheetEditor({ published, stats, slate, injuries }: { published: SheetModel; stats: StatsData | null; slate: Slate | null; injuries: Record<string, TeamInjury> | null }) {
   const labels = useMemo(() => (stats?.stats ?? []).map((s: StatMeta) => s.label), [stats]);
   const teams = useMemo(() => {
     const seen = new Map<string, { id: string; abbr: string; name: string }>();
@@ -95,7 +95,7 @@ export default function SheetEditor({ published, stats, slate }: { published: Sh
     if (loaded) writeDraft(dirty ? { base: published, model } : null);
   }, [model, dirty, loaded, published]);
 
-  const src = useMemo(() => (stats ? statsSource(stats, homeId, awayId) : null), [stats, homeId, awayId]);
+  const src = useMemo(() => (stats ? statsSource(stats, homeId, awayId, injuries) : null), [stats, homeId, awayId, injuries]);
   const get = useMemo(() => (src ? evaluator(model, src, labels) : null), [model, src, labels]);
   const view = useCallback(
     (a: string): CellView => {
@@ -477,6 +477,7 @@ export default function SheetEditor({ published, stats, slate }: { published: Sh
             <li>Click a cell, type, Enter. Double-click or F2 to edit.</li>
             <li>While typing a formula, click a cell to insert it; drag for a range.</li>
             <li><code>$D$8</code> stays fixed when copied; Ctrl+C / Ctrl+V adjusts the rest, like Sheets. Copy one cell and paste over a range to fill.</li>
+            <li><code>[Home Injury Value]</code>, <code>BPM</code>, <code>Minutes</code>, <code>Count</code>, <code>List</code>, <code>DTD</code>: players out today (ESPN report) or who missed past games.</li>
             <li><code>[Home Team]</code> = team name. <b>H/A</b> = home team&apos;s home games / away team&apos;s away games.</li>
             <li><code>--</code> = no games in that window. It&apos;s 0 inside SUMPRODUCT and <code>#VALUE!</code> in + − × ÷, like your sheet.</li>
             <li>Functions: {FUNCTIONS.join(", ")}</li>

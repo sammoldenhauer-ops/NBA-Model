@@ -35,6 +35,11 @@ export type Game = {
   line?: Line | null;
 };
 
+// Players out for a team: value = sum of (rating + 2) x expected minutes / 48
+// (net points), bpm = sum of their ratings (Sam's method), source "played" =
+// actual absences (finished games), "espn" = ESPN's injury report.
+export type TeamInjury = { value: number; bpm: number; minutes: number; count: number; names: string; dtd: string; source?: string };
+
 // One slate: the games and the stat inputs as of that date (games before it).
 export type Slate = {
   date: string;
@@ -43,6 +48,7 @@ export type Slate = {
   games: Game[];
   teams: Record<string, TeamInputs>;
   league: Record<WindowName, StatValues>;
+  injuries?: Record<string, TeamInjury>;
 };
 
 function readJson<T>(file: string): T | null {
@@ -110,4 +116,9 @@ export function getConfidence(): ConfidenceFile | null {
 }
 export function getConfidenceGames(): ConfidenceGames | null {
   return readJson<ConfidenceGames>("confidence_games.json");
+}
+
+// Today's injury report for every team (pipeline/injuries.R).
+export function getInjuries(): Record<string, TeamInjury> | null {
+  return readJson<Record<string, TeamInjury>>(path.join("stats", "injuries.json"));
 }

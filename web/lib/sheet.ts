@@ -2,7 +2,7 @@
 // Stat cells pull from [Home/Away/League Window Stat]; everything else is ordinary
 // formulas. Evaluated once per game with that game's teams. Browser-safe.
 
-import type { Game, Slate, StatFormat, StatsData } from "./data";
+import type { Game, Slate, StatFormat, StatsData, TeamInjury } from "./data";
 import { addr, evaluate, parseAddr, parseFormula, SheetError, type Node, type Scalar } from "./sheetFormula";
 import { WINDOWS, type WindowName } from "./windows";
 
@@ -27,6 +27,7 @@ export type StatSource = {
   stat: (side: Side, window: WindowName, label: string) => number | null;
   games: (side: Side, window: WindowName) => number;
   league: (window: WindowName, label: string) => number | null;
+  injury: (side: Side) => TeamInjury | null;
 };
 
 // One game on a slate, with stats as of that slate's date.
@@ -37,11 +38,12 @@ export function slateSource(slate: Slate, game: Game): StatSource {
     stat: (s, w, l) => slate.teams[t(s).id]?.[w]?.stats[l] ?? null,
     games: (s, w) => slate.teams[t(s).id]?.[w]?.games ?? 0,
     league: (w, l) => slate.league[w]?.[l] ?? null,
+    injury: (s) => slate.injuries?.[t(s).id] ?? null,
   };
 }
 
 // Any two teams, with today's stats (the Team stats tables).
-export function statsSource(stats: StatsData, homeId: string, awayId: string): StatSource {
+export function statsSource(stats: StatsData, homeId: string, awayId: string, injuries: Record<string, TeamInjury> | null = null): StatSource {
   const rows = new Map(stats.team_stats.map((r) => [`${r.team_id}|${r.window}`, r]));
   const lg = new Map(stats.league_averages.map((r) => [String(r.window), r]));
   const id = (s: Side) => (s === "Home" ? homeId : awayId);
@@ -59,6 +61,7 @@ export function statsSource(stats: StatsData, homeId: string, awayId: string): S
       const v = lg.get(w)?.[l];
       return typeof v === "number" ? v : null;
     },
+    injury: (s) => injuries?.[id(s)] ?? null,
   };
 }
 
@@ -77,6 +80,16 @@ export function resolveStat(ref: string, src: StatSource, labels: string[]): Sca
   if (s !== "League" && parts.length === 2 && ["TEAM", "NAME", "ABBR"].includes(parts[1].toUpperCase())) {
     const t = src.team(s);
     return t ? (parts[1].toUpperCase() === "ABBR" ? t.abbr : t.name) : "";
+  }
+  if (s !== "League" && parts[1]?.toUpperCase() === "INJURY") {
+    // [Home Injury Value|BPM|Minutes|Count|List|DTD]
+    const inj = src.injury(s);
+    const what = (parts[2] ?? "").toUpperCase();
+    const fields: Record<string, keyof TeamInjury> = { VALUE: "value", BPM: "bpm", MINUTES: "minutes", COUNT: "count", LIST: "names", DTD: "dtd" };
+    const f = fields[what];
+    if (!f) throw new SheetError("#REF!", `[${ref}]: use Injury Value, BPM, Minutes, Count, List or DTD`);
+    const v = inj?.[f];
+    return v == null ? (f === "names" || f === "dtd" ? "" : 0) : (v as Scalar);
   }
   if (parts.length < 3) throw new SheetError("#REF!", `[${ref}]: use [Side Window Stat], e.g. [Home YTD Points/Game]`);
   const w = WINDOW_ALIASES[parts[1].toUpperCase()];

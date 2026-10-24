@@ -4,7 +4,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import zlib from "node:zlib";
-import type { Slate } from "../lib/data";
+import type { Slate, TeamInjury } from "../lib/data";
 import { scoreGame, slateSource, type SheetModel } from "../lib/sheet";
 
 export const CACHE = path.join("..", "pipeline", "cache");
@@ -44,11 +44,41 @@ export function loadLines(): Map<string, { spread: number | null; total: number 
 
 export type InputDay = Slate & { season: number };
 
-export function loadInputs(): InputDay[] {
+// Actual absences per team-game (pipeline/injuries.R), keyed "game_id|team_id".
+export function loadInjuries(): Map<string, TeamInjury> {
+  const out = new Map<string, TeamInjury>();
+  for (const f of fs.readdirSync(CACHE).filter((x) => /^injuries_\d+\.csv\.gz$/.test(x))) {
+    const [head, ...rows] = zlib.gunzipSync(fs.readFileSync(path.join(CACHE, f))).toString("utf8").trim().split(/\r?\n/);
+    const cols = head.split(",").map((c) => c.replace(/"/g, ""));
+    for (const line of rows) {
+      const v = (line.match(/("([^"]|"")*"|[^,]*)(,|$)/g) ?? []).map((x) => x.replace(/,$/, "").replace(/^"|"$/g, ""));
+      const o = Object.fromEntries(cols.map((c, i) => [c, v[i]]));
+      out.set(`${o.game_id}|${o.team_id}`, {
+        value: +o.vorp, bpm: +o.sam, minutes: +o.out_min, count: +o.out_n,
+        names: (o.out_names ?? "").replace(/; /g, ", "), dtd: "", source: "played",
+      });
+    }
+  }
+  return out;
+}
+
+export function loadInputs(withInjuries = true): InputDay[] {
   const days: InputDay[] = [];
+  const inj = withInjuries ? loadInjuries() : new Map<string, TeamInjury>();
   for (const f of fs.readdirSync(CACHE).filter((x) => /^inputs_\d+\.ndjson\.gz$/.test(x)).sort()) {
     const text = zlib.gunzipSync(fs.readFileSync(path.join(CACHE, f))).toString("utf8");
-    for (const l of text.split("\n")) if (l.trim()) days.push(JSON.parse(l) as InputDay);
+    for (const l of text.split("\n")) {
+      if (!l.trim()) continue;
+      const d = JSON.parse(l) as InputDay;
+      d.injuries = {};
+      for (const g of d.games) {
+        for (const id of [g.home.id, g.away.id]) {
+          const x = inj.get(`${g.game_id}|${id}`);
+          if (x) d.injuries[id] = x;
+        }
+      }
+      days.push(d);
+    }
   }
   return days;
 }

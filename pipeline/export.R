@@ -43,7 +43,7 @@ game_json <- function(g, lines = NULL) {
        home = team("home"), away = team("away"), line = line)
 }
 
-write_slate_json <- function(date, season, slate, windows, lines = NULL, out_dir = CONFIG$out_dir) {
+write_slate_json <- function(date, season, slate, windows, lines = NULL, injuries = NULL, out_dir = CONFIG$out_dir) {
   dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
   ids <- unique(c(slate$home_id, slate$away_id))
   payload <- list(
@@ -52,7 +52,8 @@ write_slate_json <- function(date, season, slate, windows, lines = NULL, out_dir
     generated_at = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
     games        = lapply(seq_len(nrow(slate)), function(i) game_json(as.list(slate[i, ]), lines)),
     teams        = stats::setNames(lapply(ids, function(id) team_inputs(windows, id)), ids),
-    league       = league_inputs(windows)
+    league       = league_inputs(windows),
+    injuries     = injuries
   )
   path <- file.path(out_dir, paste0(date, ".json"))
   jsonlite::write_json(payload, path, auto_unbox = TRUE, null = "null", na = "null", digits = NA, pretty = FALSE)
