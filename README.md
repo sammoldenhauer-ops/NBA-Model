@@ -99,6 +99,20 @@ ratio of totals (current) or average of game rates (`pipeline/config.R`).
 - Historical inputs live in `pipeline/cache/inputs_<season>.ndjson.gz`; rebuild them with
   `Rscript pipeline/backtest_inputs.R 2024 2025 2026` after changing stat definitions.
 
+## Injuries, home court and player-based projection
+
+- **Player ratings** (`pipeline/injuries.R`): BPM-style, from Hollinger Game Score per 100 possessions scaled to
+  team net rating, shrunk toward replacement (-2), point-in-time.
+- **Injuries**: history uses the official NBA pregame injury report (`pipeline/injury_reports.py`, the last report
+  at least an hour before tip, Out/Doubtful); today uses ESPN's injury report. Sheet references:
+  `[Home Injury Value | BPM | Minutes | Count | List | DTD]`. The Injuries section's adjustment (method 1, value lost
+  x 0.4; method 2 = BPM/2 each way; 0 = off) feeds the score cells.
+- **Home court**: 1.5 points (half to each score).
+- **Player-based projection**: `[Home Lineup Strength]` = available players' ratings x projected minutes. The
+  section blends the sheet's margin 30% toward the player-based margin.
+- **DARKO**: `pipeline/darko.py` archives DARKO's free daily board to `pipeline/cache/darko/` (no history is
+  published), so DARKO can be backtested once snapshots accumulate. EPM's terms prohibit copying its data.
+
 ## Reproducing the spreadsheet
 
 [docs/SHEET_FORMULAS.md](docs/SHEET_FORMULAS.md) has the spreadsheet's formulas (reverse-engineered from `docs/sheet_export_lal_bkn.csv`) for reference when rebuilding them on the Model page.

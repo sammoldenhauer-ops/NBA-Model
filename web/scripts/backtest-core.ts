@@ -44,7 +44,8 @@ export function loadLines(): Map<string, { spread: number | null; total: number 
 
 export type InputDay = Slate & { season: number };
 
-// Actual absences per team-game (pipeline/injuries.R), keyed "game_id|team_id".
+// Pregame injuries per team-game (pipeline/injuries.R, from the official NBA
+// injury report published before tip-off), keyed "game_id|team_id".
 export function loadInjuries(): Map<string, TeamInjury> {
   const out = new Map<string, TeamInjury>();
   for (const f of fs.readdirSync(CACHE).filter((x) => /^injuries_\d+\.csv\.gz$/.test(x))) {
@@ -53,9 +54,10 @@ export function loadInjuries(): Map<string, TeamInjury> {
     for (const line of rows) {
       const v = (line.match(/("([^"]|"")*"|[^,]*)(,|$)/g) ?? []).map((x) => x.replace(/,$/, "").replace(/^"|"$/g, ""));
       const o = Object.fromEntries(cols.map((c, i) => [c, v[i]]));
+      const num = (x: string | undefined) => (x == null || x === "" || x === "NA" ? null : Number(x));
       out.set(`${o.game_id}|${o.team_id}`, {
-        value: +o.vorp, bpm: +o.sam, minutes: +o.out_min, count: +o.out_n,
-        names: (o.out_names ?? "").replace(/; /g, ", "), dtd: "", source: "played",
+        value: num(o.rep_vorp) ?? 0, bpm: num(o.rep_sam) ?? 0, minutes: num(o.rep_min) ?? 0, count: num(o.rep_n) ?? 0,
+        names: (o.rep_out_names ?? "").replace(/; /g, ", "), dtd: "", strength: num(o.strength_rep), source: "report",
       });
     }
   }

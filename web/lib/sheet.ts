@@ -81,6 +81,11 @@ export function resolveStat(ref: string, src: StatSource, labels: string[]): Sca
     const t = src.team(s);
     return t ? (parts[1].toUpperCase() === "ABBR" ? t.abbr : t.name) : "";
   }
+  if (s !== "League" && parts[1]?.toUpperCase() === "LINEUP") {
+    // [Home Lineup Strength]: available players' ratings x projected minutes.
+    const v = src.injury(s)?.strength;
+    return v == null || !Number.isFinite(v) ? "--" : v;
+  }
   if (s !== "League" && parts[1]?.toUpperCase() === "INJURY") {
     // [Home Injury Value|BPM|Minutes|Count|List|DTD]
     const inj = src.injury(s);

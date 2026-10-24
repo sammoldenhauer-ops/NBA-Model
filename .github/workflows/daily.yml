@@ -50,6 +50,16 @@ jobs:
             any::jsonlite
             any::testthat
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Python dependencies (injury report PDFs)
+        run: pip install pypdf
+
+      - name: Archive DARKO's daily player board
+        run: python pipeline/darko.py || echo "::warning::DARKO snapshot failed"
+
       - name: Unit tests
         run: Rscript pipeline/tests/run_tests.R
 

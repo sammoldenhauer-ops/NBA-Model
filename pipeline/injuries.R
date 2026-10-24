@@ -51,7 +51,16 @@ fit_box_weights <- function(pg_team) {
 # Contribution to team net rating for one player-game (net points / 100 poss).
 player_contrib <- function(pg, b) 100 * b["slope"] * game_score(pg) / pg$poss + b["int"] * pg$min / 240
 
-build_injury_features <- function(season, pg_all, b) {
+norm_name <- function(x) {
+  x <- iconv(x, to = "ASCII//TRANSLIT")
+  x <- tolower(gsub("[^A-Za-z ]", "", x))
+  x <- gsub("\\b(jr|sr|ii|iii|iv|v)\\b", "", x)
+  gsub("\\s+", " ", trimws(x))
+}
+
+# reports: official pregame injury report rows (pipeline/injury_reports.py) for the
+# season; team_names: ESPN team id -> display name. Adds report-based columns.
+build_injury_features <- function(season, pg_all, b, reports = NULL, team_names = NULL) {
   cur <- pg_all[pg_all$season == season, ]
   prior <- pg_all[pg_all$season == season - 1 & pg_all$min > 0, ]
   pr <- prior |> group_by(player) |> summarise(c0 = sum(contrib), m0 = sum(min) / 48, p0 = sum(pm), mins0 = mean(min), .groups = "drop")
@@ -87,8 +96,23 @@ build_injury_features <- function(season, pg_all, b) {
   last_team <- played |> group_by(player) |> arrange(date) |> summarise(dates = list(date), teams = list(team_id), .groups = "drop")
   lt <- stats::setNames(lapply(seq_len(nrow(last_team)), function(i) list(d = last_team$dates[[i]], t = last_team$teams[[i]])), last_team$player)
 
+  if (!is.null(reports)) reports$key <- norm_name(reports$player)
+  roster_ids <- function(team) {
+    x <- cur[cur$team_id == team, c("player", "name")]
+    x <- x[!duplicated(x$player), ]
+    stats::setNames(x$player, norm_name(x$name))
+  }
+  value <- function(r, idx) sum((r[idx, "r"] - REPLACEMENT) * r[idx, "expmin"] / 48)
+  lineup <- function(players, d) {
+    if (!length(players)) return(NA)
+    ra <- t(vapply(players, function(p) rating_asof(p, d), numeric(3)))
+    if (sum(ra[, "expmin"]) <= 0) return(NA)
+    sum(ra[, "r"] * ra[, "expmin"] * 240 / sum(ra[, "expmin"])) / 48
+  }
+
   out <- vector("list", nrow(games))
   for (team in unique(games$team_id)) {
+    ids_by_name <- roster_ids(team)
     tgm <- games[games$team_id == team, ]
     strengths <- numeric(0)
     for (j in seq_len(nrow(tgm))) {
@@ -107,6 +131,14 @@ build_injury_features <- function(season, pg_all, b) {
       ra <- if (length(avail)) t(vapply(avail, function(p) rating_asof(p, d), numeric(3))) else NULL
       today <- if (!is.null(ra) && sum(ra[, "expmin"]) > 0) sum(ra[, "r"] * ra[, "expmin"] * 240 / sum(ra[, "expmin"])) / 48 else NA
       base <- if (length(strengths)) mean(strengths) else NA
+      # Official pregame report: Out/Doubtful players in the rotation.
+      rep <- if (!is.null(reports) && !is.null(team_names)) reports[reports$game_id == gid & reports$team == team_names[[team]], ] else NULL
+      rep_found <- !is.null(rep) && nrow(rep) > 0
+      rep_out <- if (rep_found) unname(ids_by_name[rep$key[rep$status %in% c("Out", "Doubtful")]]) else character(0)
+      rep_q <- if (rep_found) unname(ids_by_name[rep$key[rep$status == "Questionable"]]) else character(0)
+      a_rep <- if (length(cand)) cand %in% rep_out & r[, "expmin"] >= MIN_EXPECTED else logical(0)
+      a_q <- if (length(cand)) cand %in% rep_q & r[, "expmin"] >= MIN_EXPECTED else logical(0)
+      strength_rep <- lineup(cand[!a_rep], d)
       out[[which(games$game_id == gid & games$team_id == team)]] <- data.frame(
         game_id = gid, team_id = team, date = d,
         out_n = sum(absent), out_min = sum(r[absent, "expmin"]),
@@ -114,6 +146,13 @@ build_injury_features <- function(season, pg_all, b) {
         vorp = sum((r[absent, "r"] - REPLACEMENT) * r[absent, "expmin"] / 48),
         pm_vorp = sum(r[absent, "pmr"] * r[absent, "expmin"] / 48),
         lineup_delta = if (is.na(today) || is.na(base)) 0 else today - base,
+        rep_found = rep_found,
+        rep_vorp = value(r, a_rep), rep_sam = sum(r[a_rep, "r"]), rep_n = sum(a_rep), rep_min = sum(r[a_rep, "expmin"]),
+        rep_q_vorp = value(r, a_q),
+        strength = if (is.na(today)) NA else today,
+        strength_rep = strength_rep,
+        base_strength = base,
+        rep_out_names = paste(rownames(r)[a_rep], collapse = ";"),
         out_names = paste(utils::head(rownames(r)[absent][order(-(r[absent, "r"] - REPLACEMENT) * r[absent, "expmin"])], 3), collapse = ";")
       )
       # Actual lineup strength this game (with today's ratings), for later baselines.
@@ -126,6 +165,7 @@ build_injury_features <- function(season, pg_all, b) {
   res <- do.call(rbind, out)
   nm <- stats::setNames(pg_all$name, pg_all$player)
   res$out_names <- vapply(strsplit(res$out_names, ";"), function(ids) paste(nm[ids], collapse = "; "), character(1))
+  res$rep_out_names <- vapply(strsplit(res$rep_out_names, ";"), function(ids) paste(nm[ids], collapse = "; "), character(1))
   res
 }
 
@@ -169,12 +209,26 @@ live_injury_report <- function(season, pg_all, d) {
   out <- rep[rep$status %in% c("Out", "Suspension"), ]
   out$value <- (out$rating - REPLACEMENT) * out$expmin / 48
   out <- out[order(-out$value), ]
-  teams <- unique(rep$team_id)
+  # Lineup strength: each team's recent rotation minus players listed Out,
+  # rating x expected minutes scaled to 240 (net points per 100 possessions).
+  cur <- pg_all[pg_all$season == season & pg_all$min > 0 & pg_all$date < as.Date(d), ]
+  last_team <- cur |> arrange(date) |> group_by(player) |> summarise(team = last(team_id), .groups = "drop")
+  strength_of <- function(tid) {
+    tg_ids <- cur |> filter(team_id == tid) |> distinct(game_id, date) |> arrange(desc(date)) |> head(ROTATION_WINDOW)
+    cand <- unique(cur$player[cur$team_id == tid & cur$game_id %in% tg_ids$game_id])
+    cand <- cand[cand %in% last_team$player[last_team$team == tid]]
+    cand <- setdiff(cand, out$player[out$team_id == tid])
+    x <- rat[rat$player %in% cand & !is.na(rat$expmin) & rat$expmin > 0, ]
+    if (!nrow(x)) return(NA_real_)
+    sum(x$rating * x$expmin * 240 / sum(x$expmin)) / 48
+  }
+  teams <- unique(c(rep$team_id, as.character(1:30)))
   stats::setNames(lapply(teams, function(tid) {
     o <- out[out$team_id == tid, ]
     dtd <- rep[rep$team_id == tid & rep$status == "Day-To-Day", ]
     list(value = sum(o$value), bpm = sum(o$rating[o$expmin >= MIN_EXPECTED]), minutes = sum(o$expmin), count = sum(o$expmin >= MIN_EXPECTED),
-         names = paste(o$name[o$expmin >= MIN_EXPECTED], collapse = ", "), dtd = paste(dtd$name, collapse = ", "))
+         names = paste(o$name[o$expmin >= MIN_EXPECTED], collapse = ", "), dtd = paste(dtd$name, collapse = ", "),
+         strength = strength_of(tid))
   }), teams)
 }
 
@@ -210,9 +264,13 @@ if (sys.nframe() == 0) {
   b <- fit_box_weights(fit_rows)
   message("Game Score -> net rating (fit on ", first, "): int ", round(b["int"], 2), ", slope ", round(b["slope"], 3))
   pg$contrib <- player_contrib(pg, b)
+  team_names <- tg |> distinct(team_id, team_name)
+  team_names <- stats::setNames(as.list(team_names$team_name), team_names$team_id)
   for (s in seasons) {
     t0 <- Sys.time()
-    res <- build_injury_features(s, pg, b)
+    rf <- file.path("pipeline", "cache", sprintf("injury_reports_%d.csv.gz", s))
+    reports <- if (file.exists(rf)) utils::read.csv(gzfile(rf), colClasses = "character") else NULL
+    res <- build_injury_features(s, pg, b, reports, team_names)
     out <- file.path("pipeline", "cache", sprintf("injuries_%d.csv.gz", s))
     con <- gzfile(out, "w"); utils::write.csv(res, con, row.names = FALSE); close(con)
     message(sprintf("%d: %d team-games, %.0f%% with someone out -> %s (%.0fs)", s, nrow(res), 100 * mean(res$out_n > 0), out,

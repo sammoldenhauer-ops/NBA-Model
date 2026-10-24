@@ -38,7 +38,8 @@ export type Game = {
 // Players out for a team: value = sum of (rating + 2) x expected minutes / 48
 // (net points), bpm = sum of their ratings (Sam's method), source "played" =
 // actual absences (finished games), "espn" = ESPN's injury report.
-export type TeamInjury = { value: number; bpm: number; minutes: number; count: number; names: string; dtd: string; source?: string };
+// strength = expected lineup strength (rating x projected minutes, net points / 100).
+export type TeamInjury = { value: number; bpm: number; minutes: number; count: number; names: string; dtd: string; strength?: number | null; source?: string };
 
 // One slate: the games and the stat inputs as of that date (games before it).
 export type Slate = {

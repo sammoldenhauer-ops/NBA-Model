@@ -175,6 +175,7 @@ export function buildTemplate(weights = DEFAULT_WEIGHTS): SheetModel {
     outputs: { home_score: "B4", away_score: "B5" },
   };
   addInjurySection(model);
+  addPlayerProjection(model, addHomeCourt(model));
   return model;
 }
 
@@ -214,8 +215,8 @@ export function addInjurySection(m: SheetModel): number {
   set(`B${method}`, "1", "int");
   set(`D${method}`, "1 = value lost x scale (tested best) · 2 = BPM/2 off team, BPM/2 to opponent · 0 = off");
   set(`A${scale}`, "Scale (method 1)");
-  set(`B${scale}`, "0.6", "dec2");
-  set(`D${scale}`, "0.6 fit best on 2023-26 backtests (teammates absorb part of the loss)");
+  set(`B${scale}`, "0.4", "dec2");
+  set(`D${scale}`, "0.4 fit best alongside the player-based blend (0.6 on its own); teammates absorb part of the loss");
   m.styles[String(adj)] = "bold";
   set(`A${adj}`, "Score adjustment");
   set(`B${adj}`, `=IF($B$${method}=1,($C$${val}-$B$${val})*$B$${scale}/2,IF($B$${method}=2,($C$${bpm}-$B$${bpm})/2,0))`, "dec2");
@@ -229,4 +230,79 @@ export function addInjurySection(m: SheetModel): number {
     if (mm && !f.includes(`${col}${adj}`)) m.cells[cell] = `=MROUND(${mm[1]}+${col}${adj},0.5)`;
   }
   return adj;
+}
+
+// Home court: points added to the home margin (half to the home score, half off the
+// away score). 1.5 fit best on 2023-26 held-out seasons (the sheet otherwise
+// under-projects home teams by ~1.5).
+// Returns the row of the home-court value cell (B).
+export function addHomeCourt(m: SheetModel): number {
+  const existing = Object.entries(m.cells).find(([, v]) => v === "Home court (pts)");
+  if (existing) return Number(existing[0].slice(1));
+  const maxRow = Math.max(...Object.keys(m.cells).map((a) => Number(a.replace(/^[A-Z]+/, ""))));
+  const r = maxRow + 2;
+  m.styles[String(r)] = "header";
+  m.cells[`A${r}`] = "Home court";
+  m.cells[`B${r}`] = "Home";
+  m.cells[`C${r}`] = "Away";
+  m.cells[`A${r + 1}`] = "Home court (pts)";
+  m.cells[`B${r + 1}`] = "1.5";
+  m.formats[`B${r + 1}`] = "dec1";
+  m.cells[`D${r + 1}`] = "1.5 fit best on 2023-26 held-out seasons";
+  m.styles[String(r + 2)] = "bold";
+  m.cells[`A${r + 2}`] = "Score adjustment";
+  m.cells[`B${r + 2}`] = `=$B$${r + 1}/2`;
+  m.cells[`C${r + 2}`] = `=-$B$${r + 1}/2`;
+  m.formats[`B${r + 2}`] = "dec2";
+  m.formats[`C${r + 2}`] = "dec2";
+  m.rows = Math.max(m.rows, r + 12);
+  for (const [cell, col] of [["B4", "B"], ["B5", "C"]] as const) {
+    const f = (m.cells[cell] ?? "").replace(/\s+/g, "");
+    const mm = /^=MROUND\((.*),0\.5\)$/.exec(f);
+    if (mm && !f.includes(`${col}${r + 2}`)) m.cells[cell] = `=MROUND(${mm[1]}+${col}${r + 2},0.5)`;
+  }
+  return r + 1;
+}
+
+// Player-based projection: lineup strength (ratings x projected minutes) for each
+// team, the margin it implies, and a blend weight that moves the score cells toward
+// it. 0.3 (with injury scale 0.4) fit best on 2023-26 held-out seasons: average
+// margin miss 11.19 -> 11.13.
+export function addPlayerProjection(m: SheetModel, hcaRow: number): number {
+  const existing = Object.entries(m.cells).find(([, v]) => v === "Player-based projection");
+  if (existing) return Number(existing[0].slice(1)) + 6;
+  const maxRow = Math.max(...Object.keys(m.cells).map((a) => Number(a.replace(/^[A-Z]+/, ""))));
+  const r = maxRow + 2;
+  const set = (a: string, v: string, f?: CellFormat) => {
+    m.cells[a] = v;
+    if (f) m.formats[a] = f;
+  };
+  m.styles[String(r)] = "header";
+  set(`A${r}`, "Player-based projection");
+  set(`B${r}`, "Home");
+  set(`C${r}`, "Away");
+  set(`D${r}`, "Notes");
+  set(`A${r + 1}`, "Lineup strength (net / 100)");
+  set(`B${r + 1}`, "=[Home Lineup Strength]", "dec2");
+  set(`C${r + 1}`, "=[Away Lineup Strength]", "dec2");
+  set(`D${r + 1}`, "Available players' ratings x projected minutes (injury report applied)");
+  set(`A${r + 2}`, "Player-based home margin");
+  set(`B${r + 2}`, `=IFERROR((B${r + 1}-C${r + 1})*K12/100+$B$${hcaRow},0)`, "dec1");
+  set(`D${r + 2}`, "Strength difference x expected possessions + home court");
+  set(`A${r + 3}`, "Sheet home margin");
+  set(`B${r + 3}`, "=(K17+L27)/2-(L17+K27)/2", "dec1");
+  set(`A${r + 4}`, "Blend weight");
+  set(`B${r + 4}`, "0.3", "dec2");
+  set(`D${r + 4}`, "0 = sheet only, 1 = player-based only; 0.3 fit best on 2023-26 held-out seasons (with injury scale 0.4)");
+  m.styles[String(r + 5)] = "bold";
+  set(`A${r + 5}`, "Score adjustment");
+  set(`B${r + 5}`, `=IFERROR(ISNUMBER(B${r + 1})*ISNUMBER(C${r + 1})*$B$${r + 4}*(B${r + 2}-$B$${hcaRow}-B${r + 3})/2,0)`, "dec2");
+  set(`C${r + 5}`, `=-B${r + 5}`, "dec2");
+  m.rows = Math.max(m.rows, r + 15);
+  for (const [cell, col] of [["B4", "B"], ["B5", "C"]] as const) {
+    const f = (m.cells[cell] ?? "").replace(/\s+/g, "");
+    const mm = /^=MROUND\((.*),0\.5\)$/.exec(f);
+    if (mm && !f.includes(`${col}${r + 5}`)) m.cells[cell] = `=MROUND(${mm[1]}+${col}${r + 5},0.5)`;
+  }
+  return r + 5;
 }
