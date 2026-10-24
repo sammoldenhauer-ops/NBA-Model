@@ -202,6 +202,18 @@ fs.writeFileSync(path.join(DATA, "confidence_games.json"), JSON.stringify({ mode
 const cols: (keyof GameFeatures)[] = ["season", "date", "game_id", "away", "home", "projAway", "projHome", "finalAway", "finalHome", "spread", "total", "awayGames", "homeGames", "cover10", "recordLuck", "shot3made", "shot3allowed"];
 fs.writeFileSync(path.join(DATA, "backtest.csv"), [cols.join(","), ...done.map((g) => cols.map((c) => g[c] ?? "").join(","))].join("\n") + "\n");
 
+// Results tracking: one row per team per finished game, model spread vs result.
+const trackRows: (string | number | null)[][] = [];
+for (const g of done) {
+  const m = g.projHome! - g.projAway!;
+  trackRows.push([g.season, g.date, g.home, g.away, 1, -m, g.spread, g.finalHome, g.finalAway]);
+  trackRows.push([g.season, g.date, g.away, g.home, 0, m, g.spread == null ? null : -g.spread, g.finalAway, g.finalHome]);
+}
+fs.writeFileSync(path.join(DATA, "tracking.json"), JSON.stringify({
+  generated_at: new Date().toISOString(), model_hash,
+  columns: ["season", "date", "team", "opp", "home", "spread", "line", "pts", "oppPts"], rows: trackRows,
+}) + "\n");
+
 const pct = (x: number) => (Number.isFinite(x) ? `${(x * 100).toFixed(1)}%` : "—");
 console.log(`Model ${model_hash}: ${done.length} finished games scored, ${fitGames.length} used to calibrate (${seasons.join(", ")}); ${Object.keys(perGame).length} slate games written.`);
 for (const v of validation) {

@@ -95,7 +95,11 @@ ratio of totals (current) or average of game rates (`pipeline/config.R`).
   - over/under: 3P% luck made and allowed (YTD vs last season, shrunk over the first 20 games)
   - winner: market spread, record vs point differential (sheet margin when there's no line)
   It writes `public/data/confidence_games.json` (every slate game) and the report behind the **Confidence** page.
-  Research scripts: `research.ts`, `research2.ts` (what was tested and rejected).
+  Research scripts: `research*.ts` (what was tested and rejected).
+- **Tracking** (`/tracking`): every finished game by team, home/away, model favourite/underdog and spread size
+  (ML W-L, covers vs the model or the sportsbook); precedents for each matchup on game pages, slate cards and the
+  Model page. Tested as a confidence feature (`research6.ts`): situational records do not predict future covers
+  (they slightly reverse), so they are shown but not used in the confidence %.
 - Historical inputs live in `pipeline/cache/inputs_<season>.ndjson.gz`; rebuild them with
   `Rscript pipeline/backtest_inputs.R 2024 2025 2026` after changing stat definitions.
 

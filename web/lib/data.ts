@@ -123,3 +123,9 @@ export function getConfidenceGames(): ConfidenceGames | null {
 export function getInjuries(): Record<string, TeamInjury> | null {
   return readJson<Record<string, TeamInjury>>(path.join("stats", "injuries.json"));
 }
+
+// Results tracking (scripts/confidence.ts).
+import type { TrackingFile } from "./tracking";
+export function getTracking(): TrackingFile | null {
+  return readJson<TrackingFile>("tracking.json");
+}

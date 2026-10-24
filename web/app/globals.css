@@ -215,7 +215,7 @@ table.inputs th { font-size: 0.75rem; }
 .toolbar.compact .tab { padding: 3px 8px; font-size: 0.78rem; }
 .grid-focus { outline: none; min-width: 0; }
 .sheet-wrap { overflow: auto; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
-table.sheet { border-collapse: collapse; table-layout: fixed; width: max-content; font-size: 0.8rem; user-select: none; }
+table.sheet { border-collapse: collapse; table-layout: fixed; font-size: 0.8rem; user-select: none; }
 table.sheet th, table.sheet td {
   border: 1px solid var(--border); padding: 2px 6px; height: 22px; overflow: hidden;
   white-space: nowrap; text-overflow: ellipsis; text-align: left; font-weight: 400;
@@ -260,3 +260,19 @@ main.container:has(.sheet-page) { max-width: 1800px; }
 .two-col { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
 .two-col table { border: 1px solid var(--border); border-radius: 8px; }
 .pos { color: #16a34a; }
+
+/* Tracking */
+table.tracking th, table.tracking td { text-align: right; }
+table.tracking .grp { border-left: 2px solid var(--border); }
+table.tracking .grp-head { text-align: center; color: var(--fg); }
+table.tracking tr.trk-team { cursor: pointer; }
+table.tracking tr.trk-team td { font-weight: 650; border-top: 2px solid var(--border); }
+table.tracking tr.trk-team:hover td { background-color: var(--weighted); }
+table.tracking tr.trk-side td { font-weight: 600; background: var(--head); }
+table.tracking tr.trk-bucket td.sticky-col { padding-left: 26px; }
+table.tracking td.neg { color: var(--below); }
+.trk-logo { vertical-align: middle; }
+.caret { display: inline-block; width: 12px; color: var(--muted); }
+.precedent { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
+.precedent .card h4 { margin: 0 0 4px; font-size: 0.9rem; }
+.prec-line { font-size: 0.74rem; color: var(--muted); margin-top: 4px; }

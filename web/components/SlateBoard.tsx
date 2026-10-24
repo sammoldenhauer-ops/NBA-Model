@@ -13,6 +13,7 @@ export type Card = {
   home_spread: number | null; // model
   total: number | null; // model
   conf: GameConfidence | null;
+  prec?: string[];
 };
 
 type Filters = {
@@ -109,6 +110,7 @@ function GameCard({ date, c }: { date: string; c: Card }) {
       <TeamRow team={g.away} score={c.away_score} spread={c.home_spread == null ? null : -c.home_spread} isHome={false} />
       <TeamRow team={g.home} score={c.home_score} spread={c.home_spread} isHome={!g.neutral} />
       <Picks c={c} />
+      {c.prec?.map((t) => <div key={t} className="prec-line">{t}</div>)}
     </Link>
   );
 }

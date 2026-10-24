@@ -7,6 +7,8 @@ import { evaluator, formatCell, rebaseModel, scoreGame, slateSource, statsSource
 import { addr, FUNCTIONS, parseAddr, shiftFormula } from "@/lib/sheetFormula";
 import { WINDOWS } from "@/lib/windows";
 import SheetGrid, { type CellView, type Rect } from "./SheetGrid";
+import PrecedentPanel from "./Precedent";
+import { readRows, type TrackingFile } from "@/lib/tracking";
 
 // v3 drafts remember the published version they started from (base).
 const DRAFT_KEY = "nba-model-sheet-draft-v3";
@@ -47,7 +49,8 @@ const rectOf = (a: Pos, b: Pos): Rect => ({
   r1: Math.min(a.row, b.row), c1: Math.min(a.col, b.col), r2: Math.max(a.row, b.row), c2: Math.max(a.col, b.col),
 });
 
-export default function SheetEditor({ published, stats, slate, injuries }: { published: SheetModel; stats: StatsData | null; slate: Slate | null; injuries: Record<string, TeamInjury> | null }) {
+export default function SheetEditor({ published, stats, slate, injuries, tracking }: { published: SheetModel; stats: StatsData | null; slate: Slate | null; injuries: Record<string, TeamInjury> | null; tracking: TrackingFile | null }) {
+  const trackRows = useMemo(() => (tracking ? readRows(tracking) : []), [tracking]);
   const labels = useMemo(() => (stats?.stats ?? []).map((s: StatMeta) => s.label), [stats]);
   const teams = useMemo(() => {
     const seen = new Map<string, { id: string; abbr: string; name: string }>();
@@ -484,6 +487,15 @@ export default function SheetEditor({ published, stats, slate, injuries }: { pub
           </ul>
         </aside>
       </div>
+
+      <h2>History in this spot</h2>
+      <p className="muted small">The two teams&apos; records when the model had them in the same situation as this preview (see Tracking).</p>
+      {(() => {
+        const h = teams.find((t) => t.id === homeId), a = teams.find((t) => t.id === awayId);
+        const hs = get ? get(model.outputs.home_score.replace(/\$/g, "")) : null, as = get ? get(model.outputs.away_score.replace(/\$/g, "")) : null;
+        const spread = hs && as && typeof hs.value === "number" && typeof as.value === "number" ? as.value - hs.value : null;
+        return h && a ? <PrecedentPanel rows={trackRows} home={h.abbr} away={a.abbr} homeSpread={spread} season={stats?.season ?? 0} /> : null;
+      })()}
 
       {slate && (
         <>

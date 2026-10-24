@@ -1,5 +1,7 @@
 import Link from "next/link";
 import type { ConfidenceGames, Slate } from "@/lib/data";
+import { precedentLine } from "./Precedent";
+import type { TrackRow } from "@/lib/tracking";
 import { fmtDateLong } from "@/lib/format";
 import { scoreGame, slateSource, type SheetModel } from "@/lib/sheet";
 import DatePicker from "./DatePicker";
@@ -12,13 +14,15 @@ type Props = {
   statLabels: string[];
   confidence: ConfidenceGames | null;
   modelHash: string;
+  tracking: TrackRow[];
 };
 
-export default function SlateView({ slate, dates, model, statLabels, confidence, modelHash }: Props) {
+export default function SlateView({ slate, dates, model, statLabels, confidence, modelHash, tracking }: Props) {
   const cards: Card[] = slate.games.map((g) => {
     const r = scoreGame(model, slateSource(slate, g), statLabels);
     const conf = confidence?.games[g.game_id] ?? null;
-    return { game: g, home_score: r.home_score, away_score: r.away_score, home_spread: r.home_spread, total: r.total, conf };
+    const prec = r.home_spread == null ? [] : [precedentLine(tracking, g.away.abbr, false, -r.home_spread), precedentLine(tracking, g.home.abbr, true, r.home_spread)].filter((x): x is string => !!x);
+    return { game: g, home_score: r.home_score, away_score: r.away_score, home_spread: r.home_spread, total: r.total, conf, prec };
   });
   const anyScore = cards.some((c) => c.home_score != null && c.away_score != null);
   const stale = confidence && confidence.model_hash !== modelHash

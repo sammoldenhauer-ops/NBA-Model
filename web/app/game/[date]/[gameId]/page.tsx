@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import SheetGrid from "@/components/SheetGrid";
-import { getConfidenceGames, getDates, getGame, getSlate, getStatList, type Team } from "@/lib/data";
+import { getConfidenceGames, getDates, getGame, getSlate, getStatList, getTracking, type Team } from "@/lib/data";
+import PrecedentPanel from "@/components/Precedent";
+import { readRows } from "@/lib/tracking";
 import { fmtDateLong, fmtSpread, fmtTip, teamColor } from "@/lib/format";
 import { formatCell, scoreGame, slateSource } from "@/lib/sheet";
 import { getModel } from "@/lib/modelFile";
@@ -39,6 +41,8 @@ export default async function GamePage({ params }: { params: Promise<{ date: str
   const model = getModel();
   const r = scoreGame(model, slateSource(slate, game), getStatList().map((s) => s.label));
   const conf = getConfidenceGames()?.games[game.game_id] ?? null;
+  const tf = getTracking();
+  const tracking = tf ? readRows(tf) : [];
   const pct = (p: number | null | undefined) => (p == null ? "—" : `${(p * 100).toFixed(1)}%`);
   const abbr = (side: string | null) => (side === "home" ? game.home.abbr : side === "away" ? game.away.abbr : "—");
   const view = (a: string) => {
@@ -103,6 +107,13 @@ export default async function GamePage({ params }: { params: Promise<{ date: str
           and within ±{conf.total_band[0].toFixed(1)} / ±{conf.total_band[1].toFixed(1)} of the projected total. <Link href="/confidence">How confidence works</Link>
         </p>
       )}
+
+      <h2>History in this spot</h2>
+      <p className="muted small">
+        Each team&apos;s record when the model had them in the same situation as tonight. Past seasons are backtests of the current sheet.{" "}
+        <Link href="/tracking">Full tracking</Link>
+      </p>
+      <PrecedentPanel rows={tracking} home={game.home.abbr} away={game.away.abbr} homeSpread={r.home_spread} season={slate.season} />
 
       <h2>Model sheet</h2>
       <p className="muted small">

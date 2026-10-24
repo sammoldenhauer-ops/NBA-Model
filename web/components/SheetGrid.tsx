@@ -31,10 +31,12 @@ export default function SheetGrid({
   const cols = Array.from({ length: model.cols }, (_, i) => i);
   const rows = Array.from({ length: model.rows }, (_, i) => i);
   const width = (c: number) => model.widths[colName(c)] ?? 84;
+  // Fixed total width so long text (notes) is clipped instead of widening columns.
+  const total = 40 + cols.reduce((s, c) => s + width(c), 0);
 
   return (
     <div className="sheet-wrap" style={maxHeight ? { maxHeight } : undefined}>
-      <table className="sheet">
+      <table className="sheet" style={{ width: total }}>
         <colgroup>
           <col style={{ width: 40 }} />
           {cols.map((c) => (
