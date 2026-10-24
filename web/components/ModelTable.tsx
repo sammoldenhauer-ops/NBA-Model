@@ -1,5 +1,5 @@
 import { Fragment } from "react";
-import type { Game, Slate, WindowKey } from "@/lib/data";
+import type { Game, WindowKey } from "@/lib/data";
 import { WINDOW_KEYS } from "@/lib/data";
 import { fmtDiff, fmtNum, fmtStat } from "@/lib/format";
 
@@ -11,7 +11,7 @@ const WINDOW_LABEL: Record<WindowKey, string> = {
 };
 
 // Laid out like the spreadsheet: one block per stat, a row per window, then Weighted.
-export default function ModelTable({ game, slate }: { game: Game; slate: Slate }) {
+export default function ModelTable({ game }: { game: Game }) {
   const labels = Object.fromEntries(game.stats.map((s) => [s.id, s.label]));
   const h = game.home.abbr;
   const a = game.away.abbr;
@@ -61,7 +61,7 @@ export default function ModelTable({ game, slate }: { game: Game; slate: Slate }
                       </td>
                       <td>{fmtStat(hw.team, s.fmt)}</td>
                       <td>{fmtStat(aw.team, s.fmt)}</td>
-                      <td className="muted">{slate.weights[w]}</td>
+                      <td className="muted">{s.weights?.[w] ?? "—"}</td>
                       <td>{fmtStat(hw.lg, s.fmt)}</td>
                       <td>{fmtStat(aw.lg, s.fmt)}</td>
                       <td className={tone(hw.diff)}>{fmtDiff(hw.diff, s.fmt)}</td>
@@ -74,7 +74,7 @@ export default function ModelTable({ game, slate }: { game: Game; slate: Slate }
                   <td className="left">Weighted</td>
                   <td>{fmtStat(s.home.weighted_team, s.fmt)}</td>
                   <td>{fmtStat(s.away.weighted_team, s.fmt)}</td>
-                  <td className="muted" title="Weights used (missing windows are dropped)">
+                  <td className="muted" title="Total weight of the windows used">
                     {sameWeights ? s.home.weight_sum : `${s.home.weight_sum}/${s.away.weight_sum}`}
                   </td>
                   <td>{fmtStat(s.home.weighted_lg, s.fmt)}</td>

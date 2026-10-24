@@ -1,3 +1,8 @@
+# The sheet's original weights (config may differ while weights are reworked).
+SHEET_WEIGHTS <- list(pace   = c(ytd = 40, l3 = 25, ha = 30, prior = 5),
+                      volume = c(ytd = 60, l3 = 15, ha = 20, prior = 5),
+                      rate   = c(ytd = 65, l3 = 10, ha = 20, prior = 5))
+
 test_that("round_half matches Sheets MROUND(x, 0.5), not banker's rounding", {
   expect_equal(round_half(58.3), 58.5)
   expect_equal(round_half(58.2), 58.0)
@@ -41,7 +46,7 @@ one_stat_tbl <- function(team, lg, stat = "pts") {
 }
 
 test_that("weighted values use 40/25/30/5 and adj = weighted team / weighted league", {
-  t <- add_weighted(one_stat_tbl(c(110, 120, 100, 105), c(112, 115, 113, 111)))
+  t <- add_weighted(one_stat_tbl(c(110, 120, 100, 105), c(112, 115, 113, 111)), SHEET_WEIGHTS)
   expect_equal(t$weighted_team, (40 * 110 + 25 * 120 + 30 * 100 + 5 * 105) / 100)
   expect_equal(t$weighted_lg,   (40 * 112 + 25 * 115 + 30 * 113 + 5 * 111) / 100)
   expect_equal(t$adj, t$weighted_team / t$weighted_lg)
@@ -51,13 +56,26 @@ test_that("weighted values use 40/25/30/5 and adj = weighted team / weighted lea
   expect_equal(t$diff_ytd, -2)
 })
 
-test_that("missing windows are dropped from both sides and weights renormalised", {
-  t <- add_weighted(one_stat_tbl(c(110, NA, 100, 105), c(112, 115, 113, 111)))
+test_that("sheet mode: a missing team window counts as 0 and is still divided by 100", {
+  t <- add_weighted(one_stat_tbl(c(110, 115, NA, 105), c(112, 115, 113, 111)), SHEET_WEIGHTS, missing = "zero")
+  expect_equal(t$weighted_team, (40 * 110 + 25 * 115 + 5 * 105) / 100)
+  expect_equal(t$weighted_lg,   (40 * 112 + 25 * 115 + 30 * 113 + 5 * 111) / 100)
+})
+
+test_that("each section uses its own weights", {
+  vol <- add_weighted(one_stat_tbl(c(80, 90, 100, 70), c(1, 1, 1, 1), stat = "fga"), SHEET_WEIGHTS)
+  expect_equal(vol$weighted_team, (60 * 80 + 15 * 90 + 20 * 100 + 5 * 70) / 100)
+  rate <- add_weighted(one_stat_tbl(c(0.5, 0.6, 0.4, 0.3), c(1, 1, 1, 1), stat = "efg"), SHEET_WEIGHTS)
+  expect_equal(rate$weighted_team, (65 * 0.5 + 10 * 0.6 + 20 * 0.4 + 5 * 0.3) / 100)
+})
+
+test_that("renormalize mode drops missing windows from both sides", {
+  t <- add_weighted(one_stat_tbl(c(110, NA, 100, 105), c(112, 115, 113, 111)), SHEET_WEIGHTS, missing = "renormalize")
   expect_equal(t$weight_sum, 75)
   expect_equal(t$weighted_team, (40 * 110 + 30 * 100 + 5 * 105) / 75)
   expect_equal(t$weighted_lg,   (40 * 112 + 30 * 113 + 5 * 111) / 75)
 
-  only_prior <- add_weighted(one_stat_tbl(c(NA, NA, NA, 105), c(NA, NA, NA, 111)))
+  only_prior <- add_weighted(one_stat_tbl(c(NA, NA, NA, 105), c(NA, NA, NA, 111)), SHEET_WEIGHTS, missing = "renormalize")
   expect_equal(only_prior$weighted_team, 105)
   expect_equal(only_prior$adj, 105 / 111)
 })
@@ -75,7 +93,7 @@ flat_table <- function(team_vals, lg_vals) {
     dplyr::select(-team, -lg)
 }
 
-test_that("expected values pair each stat with the opponent's mirror", {
+test_that("clean mode: expected values pair each stat with the opponent's mirror", {
   ids <- STAT_DEFS$id
   lg <- stats::setNames(rep(1, length(ids)), ids)
   lg[c("pts", "opp_pts")] <- 110
@@ -87,7 +105,7 @@ test_that("expected values pair each stat with the opponent's mirror", {
   home["opp_pts"] <- 110
   home["poss"] <- 102; away["poss"] <- 98
 
-  p <- project_matchup(flat_table(home, lg), flat_table(away, lg))
+  p <- project_matchup(flat_table(home, lg), flat_table(away, lg), formula = "clean")
   exp_h <- p$home$expected[p$home$stat == "pts"]
   exp_a_opp <- p$away$expected[p$away$stat == "opp_pts"]
   expect_equal(exp_h, 1.1 * 0.9 * 110)
@@ -95,6 +113,7 @@ test_that("expected values pair each stat with the opponent's mirror", {
   expect_equal(p$score$raw_home, (exp_h + exp_a_opp) / 2)
   expect_equal(p$score$home, round_half(108.9))
   expect_equal(p$possessions, 100)
-  # Unpaired stats get no expected value.
-  expect_true(is.na(p$home$expected[p$home$stat == "ft_pct"]))
+  # Unpaired stats carry their weighted value; the stat line is each team's own expected.
+  expect_equal(p$home$expected[p$home$stat == "ft_pct"], 1)
+  expect_equal(p$lines$home[["fga"]], p$home$expected[p$home$stat == "fga"])
 })

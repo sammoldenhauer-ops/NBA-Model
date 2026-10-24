@@ -29,6 +29,7 @@ export type StatRow = {
   id: string;
   label: string;
   fmt: StatFormat;
+  weights: Record<WindowKey, number>;
   mirror: string | null;
   home: StatSide;
   away: StatSide;
@@ -70,8 +71,7 @@ export type Slate = {
   date: string;
   season: number;
   generated_at: string;
-  weights: Record<WindowKey, number>;
-  rate_method: string;
+  settings: { missing_window: string; expected_formula: string; league_avg: string; rate_method: string };
   games: Game[];
 };
 

@@ -29,6 +29,7 @@ stat_rows_json <- function(h, a) {
     }
     list(
       id = s, label = STAT_DEFS$label[i], fmt = STAT_DEFS$fmt[i],
+      weights = as.list(stat_weights(s)[1, WINDOWS]),
       mirror = if (is.na(STAT_DEFS$mirror[i])) NULL else STAT_DEFS$mirror[i],
       home = side(h), away = side(a)
     )
@@ -69,8 +70,8 @@ write_slate_json <- function(date, season, games, out_dir = CONFIG$out_dir) {
     date         = as.character(date),
     season       = season,
     generated_at = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
-    weights      = as.list(CONFIG$weights),
-    rate_method  = CONFIG$rate_method,
+    settings     = list(missing_window = CONFIG$missing_window, expected_formula = CONFIG$expected_formula,
+                        league_avg = CONFIG$league_avg, rate_method = CONFIG$rate_method),
     games        = games
   )
   path <- file.path(out_dir, paste0(date, ".json"))

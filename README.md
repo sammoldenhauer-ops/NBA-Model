@@ -41,19 +41,24 @@ cd web && npm install && npm run dev            # http://localhost:3000
 1. **Vercel:** import the GitHub repo, set **Root Directory = `web`**, and keep the default Next.js settings. Every push to `main` redeploys.
 2. **GitHub Actions:** the workflow runs at 13:30 UTC, October through June. It needs **Settings → Actions → General → Workflow permissions → Read and write** so it can commit the data. Run it by hand from the Actions tab (with an optional date or backfill).
 
-## Open questions (CHECK)
+## Model settings
 
-| Item | Current behaviour | Where |
+The model reproduces Sam's spreadsheet cell for cell. The reverse-engineered formulas and their
+quirks are in [docs/SHEET_FORMULAS.md](docs/SHEET_FORMULAS.md). Switches are in `pipeline/config.R`:
+
+| Setting | Current | Note |
 |---|---|---|
-| Playoffs | Regular season only (`season_type` 2) | `config.R` |
-| Possessions formula | FGA − OREB + TOV + 0.44×FTA, averaged across both teams; TOV = `total_turnovers` (includes team TOs) | `team_games.R` |
-| Rate stats in a window | Ratio of totals | `config.R` `rate_method` |
-| Missing windows | Dropped; remaining weights renormalised on both sides | `model.R` `add_weighted` |
-| L3 with < 3 games | Window treated as missing | `windows.R` |
-| Unpaired stats (FT%, Reb Rate, Blk%, Stl%, +/-) | Weighted + adjusted only, no expected | `stats.R` |
-| Projected REB / OREB / BLK / STL lines | Not shown; no counting-stat pair in spec | `model.R` `LINE_STATS` |
-| Box Score +/- | Point differential | `stats.R` |
+| Weights | pace 40/25/0/5, volume 60/15/0/5, rate 65/10/0/5 | Sheet uses H/A 30/20/20; set to 0 for now while weights are reworked |
+| `missing_window` | `zero` (sheet) | A team's first game can't be projected (only the prior window counts); backfill skips those dates |
+| `expected_formula` | `sheet` | Includes the Points / FGA / FTA / Opp. FTA / Rebound Rate exceptions |
+| `league_avg` | `team_mean` (sheet) | Average of team values |
+
+Still open:
+- Playoffs in or out (regular season only for now).
+- Stat line REB, OFF REBs, BLKs, STLs: need the formula text (`.xlsx` download of the sheet).
+- Rate stats within a window: ratio of totals vs average of game rates. The sheet's inputs come from another tab.
+- Possessions formula and turnover column (`total_turnovers`).
 
 ## Reproducing the spreadsheet
 
-Put an export of a game from the sheet at `pipeline/tests/fixtures/sheet_game.json` (format is documented in `pipeline/tests/test-sheet.R`). The test compares weighted, adjusted, and expected values and the score for every stat in the fixture.
+`pipeline/tests/fixtures/sheet_lal_bkn.csv` is a CSV export of the sheet's Team v Team tab. `test-sheet.R` feeds its window values and league averages into the model and checks every weighted, league, adjusted and expected cell, the stat line, and the score against it. To check another game, export it the same way and point the test at the new file.

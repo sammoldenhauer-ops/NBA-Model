@@ -20,7 +20,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </header>
         <main className="container">{children}</main>
         <footer className="container muted small footer">
-          Projections from team box scores (hoopR / ESPN). Weights: YTD 40 · L3 25 · H/A 30 · Prior 5.
+          Projections from team box scores (hoopR / ESPN).
         </footer>
       </body>
     </html>

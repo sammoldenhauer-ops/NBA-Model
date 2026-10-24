@@ -81,13 +81,18 @@ for (d in as.character(dates)) {
                     proj$score$home_spread, proj$score$total, proj$possessions))
     game_json(g, proj)
   })
-  outputs[[d]] <- games
+  if (backfill && any(startsWith(problems, paste0(d, ": ")))) {
+    message("  ", d, ": skipped, sanity checks failed")   # backfill keeps the dates that pass
+  } else {
+    outputs[[d]] <- games
+  }
 }
 
-if (length(problems)) {
+if (length(problems) && !backfill) {
   message("\nSanity checks FAILED; nothing written:\n  ", paste(problems, collapse = "\n  "))
   quit(status = 1)
 }
+if (length(problems)) message("\nSkipped dates:\n  ", paste(problems, collapse = "\n  "))
 if (!length(outputs)) {
   message("No games on any requested date; nothing written.")
   quit(status = 0)

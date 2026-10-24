@@ -41,7 +41,7 @@ export default async function GamePage({ params }: { params: Promise<{ date: str
   const { date, gameId } = await params;
   const found = getGame(date, gameId);
   if (!found) notFound();
-  const { slate, game } = found;
+  const { game } = found;
   const p = game.projection;
 
   return (
@@ -90,9 +90,10 @@ export default async function GamePage({ params }: { params: Promise<{ date: str
       <h2>Model detail</h2>
       <p className="muted small">
         Adjusted = weighted team ÷ weighted league average (1.000 = league average). Expected = team adj × opponent’s
-        mirror adj × team’s weighted league average. Missing windows are dropped and the remaining weights renormalised.
+        mirror adj × team’s weighted league average. The Wt column shows each window’s weight for that
+        stat.
       </p>
-      <ModelTable game={game} slate={slate} />
+      <ModelTable game={game} />
     </>
   );
 }

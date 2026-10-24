@@ -73,13 +73,24 @@ test_that("windows only use games before the slate date", {
   expect_equal(val(w, "1", "prior", "pts"), 99)
 })
 
-test_that("L3 takes the last three games and is missing with fewer than three", {
+test_that("L3 takes the last three games; sheet allows fewer than three", {
   w <- compute_windows(sample_long(), 2027, "2026-10-27")
   expect_equal(val(w, "1", "l3", "pts"), mean(c(110, 120, 130)))
-  expect_true(is.na(val(w, "2", "l3", "pts")))
-  # League L3 = average of team L3 values (only team 1 qualifies here).
-  lg_l3 <- w$league$value[w$league$window == "l3" & w$league$stat == "pts"]
-  expect_equal(lg_l3, mean(c(110, 120, 130)))
+  expect_equal(val(w, "2", "l3", "pts"), 90)          # one game is enough (sheet)
+
+  strict <- compute_windows(sample_long(), 2027, "2026-10-27", l3_min_games = 3)
+  expect_true(is.na(val(strict, "2", "l3", "pts")))
+  lg_l3 <- strict$league$value[strict$league$window == "l3" & strict$league$stat == "pts"]
+  expect_equal(lg_l3, mean(c(110, 120, 130)))          # only team 1 qualifies
+})
+
+test_that("league average is the mean of team values (sheet) or pooled totals", {
+  w <- compute_windows(sample_long(), 2027, "2026-10-27")
+  lg <- function(x, win) x$league$value[x$league$window == win & x$league$stat == "pts"]
+  team_ytd <- c(mean(c(100, 110, 120, 130)), 90, 105, 100, 95)
+  expect_equal(lg(w, "ytd"), mean(team_ytd))
+  pooled <- compute_windows(sample_long(), 2027, "2026-10-27", league_avg = "pooled")
+  expect_equal(lg(pooled, "ytd"), mean(c(100, 110, 120, 130, 90, 105, 100, 95)))
 })
 
 test_that("rate stats use ratio of totals across the window", {

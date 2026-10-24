@@ -6,42 +6,47 @@
 #   rate stats     -> window value = sum(num) / sum(den)  (ratio of totals)
 
 STAT_DEFS <- tibble::tribble(
-  ~id,            ~label,                     ~kind,   ~fmt,    ~mirror,
-  "poss",         "Possessions",              "count", "dec1",  NA,
-  "pts",          "Points/Game",              "count", "dec1",  "opp_pts",
-  "off_eff",      "Off. Efficiency",          "rate",  "dec3",  "def_eff",
-  "opp_pts",      "Opp. Points/Game",         "count", "dec1",  "pts",
-  "def_eff",      "Def. Efficiency",          "rate",  "dec3",  "off_eff",
-  "fga",          "FGA/Game",                 "count", "dec1",  "opp_fga",
-  "opp_fga",      "Opp. FGA/Game",            "count", "dec1",  "fga",
-  "fg3a",         "3PA/Game",                 "count", "dec1",  "opp_fg3a",
-  "opp_fg3a",     "Opp. 3PA/Game",            "count", "dec1",  "fg3a",
-  "fta",          "FTA/Game",                 "count", "dec1",  "opp_fta",
-  "opp_fta",      "Opp. FTA/Game",            "count", "dec1",  "fta",
-  "efg",          "eFG%",                     "rate",  "pct",   "opp_efg",
-  "opp_efg",      "Opp. eFG%",                "rate",  "pct",   "efg",
-  "fg2_rate",     "2-Point Rate",             "rate",  "pct",   "opp_fg2_rate",
-  "opp_fg2_rate", "Opp. 2-Point Rate",        "rate",  "pct",   "fg2_rate",
-  "fg3_pct",      "3P%",                      "rate",  "pct",   "opp_fg3_pct",
-  "opp_fg3_pct",  "Opp. 3P%",                 "rate",  "pct",   "fg3_pct",
-  "fg3_rate",     "3-Point Rate",             "rate",  "pct",   "opp_fg3_rate",
-  "opp_fg3_rate", "Opp. 3-Point Rate",        "rate",  "pct",   "fg3_rate",
-  "ft_pct",       "FT%",                      "rate",  "pct",   NA,
-  "oreb_pct",     "OREB%",                    "rate",  "pct",   "opp_oreb_pct",
-  "opp_oreb_pct", "Opp. OREB%",               "rate",  "pct",   "oreb_pct",
-  "dreb_pct",     "DREB%",                    "rate",  "pct",   "opp_dreb_pct",
-  "opp_dreb_pct", "Opp. DREB%",               "rate",  "pct",   "dreb_pct",
-  "reb_rate",     "Rebound Rate",             "rate",  "pct",   NA,
-  "blk_pct",      "Block%",                   "rate",  "pct",   NA,
-  "stl_pct",      "Steals/Defensive Play%",   "rate",  "pct",   NA,
-  "tov",          "Turnovers/Game",           "count", "dec1",  "opp_tov",
-  "opp_tov",      "Opp. Turnovers/Game",      "count", "dec1",  "tov",
-  "ast",          "Assists/Game",             "count", "dec1",  "opp_ast",
-  "opp_ast",      "Opp. Assists/Game",        "count", "dec1",  "ast",
-  "ast_to",       "AST/TO Ratio",             "rate",  "dec2",  "opp_ast_to",
-  "opp_ast_to",   "Opp. AST/TO Ratio",        "rate",  "dec2",  "ast_to",
-  "plus_minus",   "Box Score +/-",            "count", "dec1",  NA  # CHECK: point differential
+  ~id,            ~label,                   ~kind,   ~fmt,   ~wgroup,  ~mirror,
+  "poss",         "Poss./Game",             "count", "dec1", "pace",   NA,
+  "pts",          "Points/Game",            "count", "dec1", "pace",   "opp_pts",
+  "off_eff",      "Off. Efficiency",        "rate",  "dec3", "pace",   "def_eff",
+  "opp_pts",      "Opp. Points/Game",       "count", "dec1", "pace",   "pts",
+  "def_eff",      "Def. Efficiency",        "rate",  "dec3", "pace",   "off_eff",
+  "fga",          "FGA/Game",               "count", "dec1", "volume", "opp_fga",
+  "opp_fga",      "Opp. FGA/Game",          "count", "dec1", "volume", "fga",
+  "fg3a",         "3PA/Game",               "count", "dec1", "volume", "opp_fg3a",
+  "opp_fg3a",     "Opp. 3PA/Game",          "count", "dec1", "volume", "fg3a",
+  "fta",          "FTA/Game",               "count", "dec1", "volume", "opp_fta",
+  "opp_fta",      "Opp. FTA/Game",          "count", "dec1", "volume", "fta",
+  "efg",          "EFG%",                   "rate",  "pct",  "rate",   "opp_efg",
+  "opp_efg",      "Opp. EFG%",              "rate",  "pct",  "rate",   "efg",
+  "fg2_rate",     "2PT Rate",               "rate",  "pct",  "rate",   "opp_fg2_rate",
+  "opp_fg2_rate", "Opp. 2PT Rate",          "rate",  "pct",  "rate",   "fg2_rate",
+  "fg3_pct",      "3 Point %",              "rate",  "pct",  "rate",   "opp_fg3_pct",
+  "opp_fg3_pct",  "Opp. 3 Point %",         "rate",  "pct",  "rate",   "fg3_pct",
+  "fg3_rate",     "3PT Rate",               "rate",  "pct",  "rate",   "opp_fg3_rate",
+  "opp_fg3_rate", "Opp. 3PT Rate",          "rate",  "pct",  "rate",   "fg3_rate",
+  "ft_pct",       "FT%",                    "rate",  "pct",  "rate",   NA,
+  "oreb_pct",     "Off. Rebound%",          "rate",  "pct",  "rate",   "opp_oreb_pct",
+  "opp_oreb_pct", "Opp. Off. Rebound%",     "rate",  "pct",  "rate",   "oreb_pct",
+  "dreb_pct",     "Def. Rebound%",          "rate",  "pct",  "rate",   "opp_dreb_pct",
+  "opp_dreb_pct", "Opp. Def. Rebound%",     "rate",  "pct",  "rate",   "dreb_pct",
+  "reb_rate",     "Rebound Rate",           "rate",  "pct",  "rate",   NA,
+  "blk_pct",      "Block%",                 "rate",  "pct",  "rate",   NA,
+  "stl_pct",      "STL/Def. Play",          "rate",  "pct",  "rate",   NA,
+  "tov",          "TO/Game",                "count", "dec1", "rate",   "opp_tov",
+  "opp_tov",      "Opp. TO/Game",           "count", "dec1", "rate",   "tov",
+  "ast",          "Ass./Game",              "count", "dec1", "rate",   "opp_ast",
+  "opp_ast",      "Opp. Ass./Game",         "count", "dec1", "rate",   "ast",
+  "ast_to",       "Ass./TO Ratio",          "rate",  "dec3", "rate",   "opp_ast_to",
+  "opp_ast_to",   "Opp. Ass./TO Ratio",     "rate",  "dec3", "rate",   "ast_to"
 )
+
+# Window weights for each stat, from its section in CONFIG$weights.
+stat_weights <- function(stat_ids, weights = CONFIG$weights) {
+  groups <- STAT_DEFS$wgroup[match(stat_ids, STAT_DEFS$id)]
+  do.call(rbind, lapply(groups, function(g) weights[[g]]))
+}
 
 # Numerator / denominator for each stat from a team-game row (own + opp_ columns).
 stat_components <- function(tg) {
@@ -79,8 +84,7 @@ stat_components <- function(tg) {
     ast          = list(ast, one),
     opp_ast      = list(opp_ast, one),
     ast_to       = list(ast, tov),
-    opp_ast_to   = list(opp_ast, opp_tov),
-    plus_minus   = list(pts - opp_pts, one)
+    opp_ast_to   = list(opp_ast, opp_tov)
   ))
 }
 

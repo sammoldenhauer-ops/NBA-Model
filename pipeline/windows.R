@@ -17,7 +17,8 @@ summarise_window <- function(df, ...) {
 # long:   output of stats_long() for current + prior season
 # season: the current season (hoopR label, e.g. 2027)
 # as_of:  game date; only games strictly before it count
-compute_windows <- function(long, season, as_of, last_n = CONFIG$last_n) {
+compute_windows <- function(long, season, as_of, last_n = CONFIG$last_n,
+                            l3_min_games = CONFIG$l3_min_games, league_avg = CONFIG$league_avg) {
   as_of <- as.Date(as_of)
   cur   <- long[long$season == season & long$game_date < as_of, ]
   prior <- long[long$season == season - 1, ]
@@ -26,30 +27,34 @@ compute_windows <- function(long, season, as_of, last_n = CONFIG$last_n) {
     dplyr::distinct(team_id, game_id, game_date) |>
     dplyr::group_by(team_id) |>
     dplyr::slice_max(game_date, n = last_n, with_ties = FALSE) |>
-    dplyr::filter(dplyr::n() == last_n) |>   # fewer than N games -> window missing
+    dplyr::filter(dplyr::n() >= l3_min_games) |>   # too few games -> window missing
     dplyr::ungroup()
   l3 <- dplyr::semi_join(cur, last_games, by = c("team_id", "game_id"))
 
-  team <- dplyr::bind_rows(
-    summarise_window(cur, team_id, stat) |> dplyr::mutate(window = "ytd"),
-    summarise_window(l3, team_id, stat) |> dplyr::mutate(window = "l3"),
-    summarise_window(cur[cur$home_away == "home", ], team_id, stat) |> dplyr::mutate(window = "home"),
-    summarise_window(cur[cur$home_away == "away", ], team_id, stat) |> dplyr::mutate(window = "away"),
-    summarise_window(prior, team_id, stat) |> dplyr::mutate(window = "prior")
+  splits <- list(
+    ytd   = cur,
+    l3    = l3,
+    home  = cur[cur$home_away == "home", ],
+    away  = cur[cur$home_away == "away", ],
+    prior = prior
   )
+  team <- dplyr::bind_rows(lapply(names(splits), function(w) {
+    summarise_window(splits[[w]], team_id, stat) |> dplyr::mutate(window = w)
+  }))
+  team$value[!is.finite(team$value)] <- NA_real_
 
-  team_l3 <- team[team$window == "l3", ]
-  league <- dplyr::bind_rows(
-    summarise_window(cur, stat) |> dplyr::mutate(window = "ytd"),
-    # L3 league average = average of every team's last-3 value.
-    team_l3 |>
-      dplyr::group_by(stat) |>
-      dplyr::summarise(value = mean(value, na.rm = TRUE), n = dplyr::n(), .groups = "drop") |>
-      dplyr::mutate(window = "l3"),
-    summarise_window(cur[cur$home_away == "home", ], stat) |> dplyr::mutate(window = "home"),
-    summarise_window(cur[cur$home_away == "away", ], stat) |> dplyr::mutate(window = "away"),
-    summarise_window(prior, stat) |> dplyr::mutate(window = "prior")
-  )
+  league <- dplyr::bind_rows(lapply(names(splits), function(w) {
+    # The sheet averages the teams' values (every team counts equally); "pooled"
+    # weights by games instead. L3 is always an average of team values.
+    if (league_avg == "team_mean" || w == "l3") {
+      team[team$window == w, ] |>
+        dplyr::group_by(stat) |>
+        dplyr::summarise(value = mean(value, na.rm = TRUE), n = sum(!is.na(value)), .groups = "drop") |>
+        dplyr::mutate(window = w)
+    } else {
+      summarise_window(splits[[w]], stat) |> dplyr::mutate(window = w)
+    }
+  }))
   league$value[!is.finite(league$value)] <- NA_real_
 
   list(team = team, league = league)
