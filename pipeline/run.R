@@ -3,8 +3,8 @@
 #   Rscript pipeline/run.R --date=2026-10-23    # a specific date
 #   Rscript pipeline/run.R --backfill           # every slate this season up to the date
 #
-# Run from the repo root. Always writes the raw stat tables; a slate whose projections
-# fail the sanity checks is not written (previous slate stays live).
+# Run from the repo root. Writes the stat inputs only; the projections come from
+# Sam's formulas in web/model.json, evaluated by the website.
 
 suppressPackageStartupMessages({
   library(dplyr)
@@ -14,7 +14,7 @@ script_dir <- local({
   f <- sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value = TRUE))
   if (length(f)) dirname(normalizePath(f)) else "pipeline"
 })
-for (f in c("config.R", "stats.R", "team_games.R", "windows.R", "model.R", "fetch.R", "export.R", "stats_export.R")) {
+for (f in c("config.R", "stats.R", "team_games.R", "windows.R", "fetch.R", "export.R", "stats_export.R")) {
   source(file.path(script_dir, f))
 }
 
@@ -45,72 +45,24 @@ dates <- if (backfill) {
   target_date
 }
 
-sanity_errors <- function(g, proj) {
-  errs <- character()
-  label <- paste0(g$away_abbr, " @ ", g$home_abbr)
-  sc <- proj$score
-  nums <- c(sc$raw_home, sc$raw_away, sc$home, sc$away, sc$total, proj$possessions)
-  if (any(!is.finite(nums))) errs <- c(errs, paste(label, "has NaN/Inf/NA in score or possessions"))
-  if (all(is.finite(c(sc$home, sc$away)))) {
-    if (sc$home > sc$away && !(sc$home_spread < 0)) errs <- c(errs, paste(label, "spread sign does not match scores"))
-    if (sc$away > sc$home && !(sc$away_spread < 0)) errs <- c(errs, paste(label, "spread sign does not match scores"))
-    if (sc$home_spread != -sc$away_spread) errs <- c(errs, paste(label, "spreads are not opposite"))
-  }
-  if (is.finite(proj$possessions) &&
-      (proj$possessions < CONFIG$poss_range[1] || proj$possessions > CONFIG$poss_range[2])) {
-    errs <- c(errs, sprintf("%s possessions %.1f outside %d-%d", label, proj$possessions,
-                            CONFIG$poss_range[1], CONFIG$poss_range[2]))
-  }
-  errs
-}
-
-outputs <- list()
-problems <- character()
+written <- character()
 for (d in as.character(dates)) {
   slate <- slate_for_date(schedule, d)
   if (is.null(slate) || !nrow(slate)) { message(d, ": no games"); next }
-
   w <- compute_windows(long, season, d)
-  games <- lapply(seq_len(nrow(slate)), function(i) {
-    g <- as.list(slate[i, ])
-    proj <- project_matchup(team_window_table(w, g$home_id, "home"),
-                            team_window_table(w, g$away_id, "away"))
-    errs <- sanity_errors(g, proj)
-    if (length(errs)) problems <<- c(problems, paste0(d, ": ", errs))
-    message(sprintf("  %s %-4s %5.1f @ %-4s %5.1f  spread %+5.1f  total %5.1f  poss %.1f", d,
-                    g$away_abbr, proj$score$away, g$home_abbr, proj$score$home,
-                    proj$score$home_spread, proj$score$total, proj$possessions))
-    game_json(g, proj)
-  })
-  if (any(startsWith(problems, paste0(d, ": ")))) {
-    message("  ", d, ": skipped, sanity checks failed")   # backfill keeps the dates that pass
-  } else {
-    outputs[[d]] <- games
+
+  # Every team on the slate needs stats (at least last season's).
+  have <- unique(w$team$team_id)
+  missing <- setdiff(c(slate$home_id, slate$away_id), have)
+  if (length(missing)) {
+    message("::warning::", d, ": no stats for team id(s) ", paste(missing, collapse = ", "), "; slate not written")
+    next
   }
+  message("Wrote ", write_slate_json(d, season, slate, w), " (", nrow(slate), " games)")
+  written <- c(written, d)
 }
 
-# Raw stat tables are written every run, even when a projection fails its checks.
 td <- as.character(target_date)
-write_stats_files(tg, long, compute_windows(long, season, td), season, td,
-                  slate = slate_for_date(schedule, td), projections = outputs[[td]])
-
-if (length(problems) && !backfill) {
-  # Keep yesterday's projections live; flag the run in the Actions log.
-  message("::warning::Projection sanity checks failed for ", td, "; slate not updated.
-  ",
-          paste(problems, collapse = "
-  "))
-  quit(status = 0)
-}
-if (length(problems)) message("
-Skipped dates:
-  ", paste(problems, collapse = "
-  "))
-if (!length(outputs)) {
-  message("No games on any requested date; no slate written.")
-  quit(status = 0)
-}
-
-for (d in names(outputs)) message("Wrote ", write_slate_json(d, season, outputs[[d]]))
-write_index_json(latest = max(names(outputs)))
+write_stats_files(tg, long, compute_windows(long, season, td), season, td, slate = slate_for_date(schedule, td))
+if (length(written)) write_index_json(latest = max(written))
 message("Done.")

@@ -3,10 +3,8 @@
 #   team_stats.csv       one row per team per window (YTD, L3, Home, Away, Prior), all 33 stats
 #   league_averages.csv  one row per window
 #   team_games.csv       every team-game (current + prior season): box score, opponent box, per-game stats
-#   slate.csv            today's games with tip time and the model's projection
+#   slate.csv            today's games with tip times
 #   stats.json           team_stats + league averages for the website
-
-STATS_WINDOWS <- c(ytd = "YTD", l3 = "L3", home = "Home", away = "Away", prior = "Prior")
 
 stat_label <- function(ids) STAT_DEFS$label[match(ids, STAT_DEFS$id)]
 
@@ -35,7 +33,7 @@ write_csv <- function(df, path) {
   path
 }
 
-write_stats_files <- function(tg, long, windows, season, as_of, slate = NULL, projections = NULL,
+write_stats_files <- function(tg, long, windows, season, as_of, slate = NULL,
                               out_dir = file.path(CONFIG$out_dir, "stats")) {
   dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
   teams <- team_directory(tg[tg$season %in% c(season, season - 1), ])
@@ -77,13 +75,6 @@ write_stats_files <- function(tg, long, windows, season, as_of, slate = NULL, pr
   if (!is.null(slate) && nrow(slate)) {
     sl <- slate[, c("game_date", "tip_time", "game_id", "away_abbr", "home_abbr", "away_name", "home_name")]
     names(sl) <- c("date", "tip_time_utc", "game_id", "away", "home", "away_name", "home_name")
-    if (!is.null(projections)) {
-      p <- do.call(rbind, lapply(projections, function(g) data.frame(
-        game_id = g$game_id, proj_away = g$projection$away_score, proj_home = g$projection$home_score,
-        home_spread = g$projection$home_spread, total = g$projection$total,
-        possessions = g$projection$possessions)))
-      sl <- dplyr::left_join(sl, p, by = "game_id")
-    }
     write_csv(sl, file.path(out_dir, "slate.csv"))
   }
 

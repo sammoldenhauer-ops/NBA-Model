@@ -1,6 +1,8 @@
 # NBA Matchup Model
 
-Automates the team-level NBA projection spreadsheet. A daily GitHub Action pulls box scores with hoopR, runs the model for every game on the slate, writes JSON to `web/public/data/`, and commits it. The commit triggers a Vercel redeploy of the Next.js site.
+A daily GitHub Action pulls box scores with hoopR, builds every team's stats by window (YTD, L3, Home, Away, Prior) plus league averages, writes them to `web/public/data/`, and commits. The commit triggers a Vercel redeploy of the Next.js site.
+
+The pipeline does **no model math**. Projections come from Sam's formulas in [`web/model.json`](web/model.json), built on the site's **Model** page and evaluated for every game.
 
 Full spec: [docs/NBA_MODEL_SPEC.md](docs/NBA_MODEL_SPEC.md).
 
@@ -8,16 +10,16 @@ Full spec: [docs/NBA_MODEL_SPEC.md](docs/NBA_MODEL_SPEC.md).
 
 ```
 pipeline/
-  config.R       weights, season types, rate method, sanity ranges (all CHECK items live here)
-  stats.R        the 34 stat definitions (numerator / denominator per team-game) and mirror pairs
+  config.R       season types, league-average and rate methods
+  stats.R        the 33 stat definitions (numerator / denominator per team-game)
   fetch.R        hoopR box scores + schedule, ESPN fallback for games missing from the bulk file
   team_games.R   one row per team per game with opponent stats joined, possessions
   windows.R      YTD / L3 / H/A / Prior team values and league averages as of a date
-  model.R        weighting, adjusted index, expected values, projected score
-  export.R       JSON output
+  export.R       per-date slate JSON (games + stat inputs)
+  stats_export.R raw stat tables (CSV + JSON)
   run.R          entry point
   tests/         unit tests (run_tests.R)
-web/             Next.js site (reads web/public/data at build time)
+web/             Next.js site (reads web/public/data and web/model.json at build time)
 .github/workflows/daily.yml
 ```
 
@@ -30,7 +32,7 @@ Every run writes the model's inputs to `web/public/data/stats/` (overwritten dai
 | `team_stats.csv` | One row per team per window (YTD, L3, Home, Away, Prior) with games played and all 33 stats |
 | `league_averages.csv` | League average per window (mean of the 30 teams) |
 | `team_games.csv` | Every team-game this season and last: box score, opponent box, possessions, per-game stats |
-| `slate.csv` | Today's games, tip times (UTC), and the model's projection |
+| `slate.csv` | Today's games and tip times (UTC) |
 
 On the live site they're at `/data/stats/<file>`. The **Team stats** page lists them with a ready-made
 `=IMPORTDATA("…")` formula for Google Sheets. Rates are decimals (0.523 = 52.3%).
@@ -48,31 +50,31 @@ Rscript pipeline/run.R --backfill               # every slate this season throug
 cd web && npm install && npm run dev            # http://localhost:3000
 ```
 
-`run.R` exits non-zero and writes nothing if any sanity check fails (missing projection, NaN/Inf, spread sign mismatch, possessions outside 85–115).
+`run.R` skips (with a warning) any slate where a team has no stats.
 
 ## Deploying
 
 1. **Vercel:** import the GitHub repo, set **Root Directory = `web`**, and keep the default Next.js settings. Every push to `main` redeploys.
 2. **GitHub Actions:** the workflow runs at 13:30 UTC, October through June. It needs **Settings → Actions → General → Workflow permissions → Read and write** so it can commit the data. Run it by hand from the Actions tab (with an optional date or backfill).
 
-## Model settings
+## Building the model
 
-The model reproduces Sam's spreadsheet cell for cell. The reverse-engineered formulas and their
-quirks are in [docs/SHEET_FORMULAS.md](docs/SHEET_FORMULAS.md). Switches are in `pipeline/config.R`:
+On the **Model** page, each row is a named formula, like a cell in a sheet:
 
-| Setting | Current | Note |
-|---|---|---|
-| Weights | pace 40/25/0/5, volume 60/15/0/5, rate 65/10/0/5 | Sheet uses H/A 30/20/20; set to 0 for now while weights are reworked |
-| `missing_window` | `zero` (sheet) | A team's first game can't be projected (only the prior window counts); backfill skips those dates |
-| `expected_formula` | `sheet` | Includes the Points / FGA / FTA / Opp. FTA / Rebound Rate exceptions |
-| `league_avg` | `team_mean` (sheet) | Average of team values |
+- Stats: `[Side Window Stat]`, e.g. `[Home YTD Points/Game]`, `[Away H/A EFG%]`, `[League Home Points/Game]`.
+  Side = Home, Away or League; Window = YTD, L3, Home, Away, Prior or H/A (the team's own split). `Games` gives the games count.
+- Other rows by name: `home_pts_w * 2`
+- `+ - * / ^`, lists `{40,25,30,5}`, `SUMPRODUCT`, `SUM`, `AVERAGE`, `MIN`, `MAX`, `ROUND`, `MROUND`, `ABS`
+- Tick **0.5** on a row to round it to the nearest 0.5 (Sheets `MROUND`).
+- A blank stat (no games in that window yet) counts as 0, like a blank cell.
+- The slate reads `HOME_SCORE` and `AWAY_SCORE`; spread and total are computed from them.
 
-Still open:
-- Playoffs in or out (regular season only for now).
-- Stat line REB, OFF REBs, BLKs, STLs: need the formula text (`.xlsx` download of the sheet).
-- Rate stats within a window: ratio of totals vs average of game rates. The sheet's inputs come from another tab.
-- Possessions formula and turnover column (`total_turnovers`).
+Edits are kept in your browser as a draft. To publish: **Download model.json**, then upload it to the
+`web/` folder on GitHub and commit. Vercel redeploys and every visitor sees the new projections.
+
+Still open: playoffs in or out (regular season only), and whether rate stats within a window should be
+ratio of totals (current) or average of game rates (`pipeline/config.R`).
 
 ## Reproducing the spreadsheet
 
-`pipeline/tests/fixtures/sheet_lal_bkn.csv` is a CSV export of the sheet's Team v Team tab. `test-sheet.R` feeds its window values and league averages into the model and checks every weighted, league, adjusted and expected cell, the stat line, and the score against it. To check another game, export it the same way and point the test at the new file.
+[docs/SHEET_FORMULAS.md](docs/SHEET_FORMULAS.md) has the spreadsheet's formulas (reverse-engineered from `docs/sheet_export_lal_bkn.csv`) for reference when rebuilding them on the Model page.

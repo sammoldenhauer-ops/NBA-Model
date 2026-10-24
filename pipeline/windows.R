@@ -59,20 +59,3 @@ compute_windows <- function(long, season, as_of, last_n = CONFIG$last_n,
 
   list(team = team, league = league)
 }
-
-# Wide per-stat table for one team in one matchup role ("home" / "away").
-# Columns: stat, team_<w>, lg_<w>, n_<w> for w in ytd, l3, ha, prior.
-team_window_table <- function(windows, team_id, side) {
-  source_window <- c(ytd = "ytd", l3 = "l3", ha = side, prior = "prior")
-  tid <- team_id
-  team_rows <- windows$team[windows$team$team_id == tid, ]
-  out <- tibble::tibble(stat = STAT_DEFS$id)
-  for (w in names(source_window)) {
-    t <- team_rows[team_rows$window == source_window[[w]], c("stat", "value", "n")]
-    names(t) <- c("stat", paste0("team_", w), paste0("n_", w))
-    l <- windows$league[windows$league$window == source_window[[w]], c("stat", "value")]
-    names(l) <- c("stat", paste0("lg_", w))
-    out <- out |> dplyr::left_join(t, by = "stat") |> dplyr::left_join(l, by = "stat")
-  }
-  out
-}

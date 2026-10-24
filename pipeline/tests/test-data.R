@@ -100,11 +100,16 @@ test_that("rate stats use ratio of totals across the window", {
   expect_equal(val(w, "1", "ytd", "fg3_pct"), (20 + 12) / (35 + 35))
 })
 
-test_that("team_window_table maps home/away split to the matchup side", {
+test_that("slate inputs carry every window and stat for each team, plus league averages", {
   w <- compute_windows(sample_long(), 2027, "2026-10-27")
-  h <- team_window_table(w, "1", "home")
-  a <- team_window_table(w, "1", "away")
-  expect_equal(h$team_ha[h$stat == "pts"], mean(c(100, 120, 130)))
-  expect_equal(a$team_ha[a$stat == "pts"], 110)
-  expect_equal(nrow(h), nrow(STAT_DEFS))
+  t1 <- team_inputs(w, "1")
+  expect_equal(names(t1), c("YTD", "L3", "Home", "Away", "Prior"))
+  expect_equal(t1$Home$games, 3)
+  expect_equal(t1$Home$stats[["Points/Game"]], mean(c(100, 120, 130)), tolerance = 1e-5)
+  expect_equal(t1$Away$stats[["Points/Game"]], 110)
+  expect_equal(length(t1$YTD$stats), nrow(STAT_DEFS))
+  expect_true(is.na(team_inputs(w, "2")$Home$stats[["Points/Game"]]))   # team 2 has no home games
+  expect_equal(team_inputs(w, "2")$Home$games, 0L)
+  lg <- league_inputs(w)
+  expect_equal(names(lg), c("YTD", "L3", "Home", "Away", "Prior"))
 })

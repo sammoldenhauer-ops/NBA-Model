@@ -6,7 +6,7 @@ const FILES = [
   { file: "team_stats.csv", what: "Every team × window (YTD, L3, Home, Away, Prior), all 33 stats" },
   { file: "league_averages.csv", what: "League average for each window" },
   { file: "team_games.csv", what: "Game log: every team-game this season and last, box score + opponent box + per-game stats" },
-  { file: "slate.csv", what: "Today’s games, tip times, and the model’s projection" },
+  { file: "slate.csv", what: "Today’s games and tip times" },
 ];
 
 export default function SheetLinks() {

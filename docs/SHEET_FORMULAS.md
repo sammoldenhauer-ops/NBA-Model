@@ -1,10 +1,12 @@
 # Spreadsheet formulas (reverse-engineered)
 
 Source: `Main Model - Team v Team.csv` (LAL home vs BKN away), saved as
-`pipeline/tests/fixtures/sheet_lal_bkn.csv`. The export holds values only, so each formula was
-recovered by recomputing every cell from the sheet's own inputs and finding the formula that
-matches. `pipeline/tests/test-sheet.R` checks 270+ cells, the score, spread, total and stat
-line against the export, and all of them pass.
+`docs/sheet_export_lal_bkn.csv`. The export holds values only, so each formula was recovered by
+recomputing every cell from the sheet's own inputs and finding the formula that matches (270+
+cells, the score, spread, total and stat line all reproduced).
+
+The pipeline no longer computes the model. Projections now come from formulas built on the
+site's Model page (`web/model.json`). Use this page as a reference when rebuilding the sheet there.
 
 ## Layer 1: windows and league averages
 
@@ -70,16 +72,9 @@ or team.
 - Prior season is labelled 2022 in the sheet.
 - The injury rows (BPM, Home/Away Pts) are all 0 and don't feed the score.
 
-## Switches (`pipeline/config.R`)
+## Effect of the sheet's quirks
 
-| Setting | Sheet | Alternative |
-|---|---|---|
-| `missing_window` | `"zero"` | `"renormalize"` |
-| `expected_formula` | `"sheet"` (the exceptions above) | `"clean"` (spec formula everywhere) |
-| `league_avg` | `"team_mean"` | `"pooled"` |
-| `l3_min_games` | `1` | `3` |
-
-Same LAL–BKN inputs under each combination:
+Same LAL–BKN inputs with the quirks on (sheet) or off (clean / renormalized missing windows):
 
 | expected_formula | missing_window | LAL | BKN | Spread | Total | Poss |
 |---|---|---|---|---|---|---|

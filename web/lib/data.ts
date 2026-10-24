@@ -1,39 +1,18 @@
 import fs from "node:fs";
 import path from "node:path";
 
-// JSON written by pipeline/export.R. Read at build time; a new commit redeploys.
+// JSON written by the pipeline (pipeline/export.R, pipeline/stats_export.R). Read at
+// build time; a new commit redeploys.
 const DATA_DIR = path.join(process.cwd(), "public", "data");
 
-export type WindowKey = "ytd" | "l3" | "ha" | "prior";
-export const WINDOW_KEYS: WindowKey[] = ["ytd", "l3", "ha", "prior"];
-
-export type WindowValue = {
-  team: number | null;
-  lg: number | null;
-  diff: number | null;
-  n: number | null;
-};
-
-export type StatSide = {
-  windows: Record<WindowKey, WindowValue>;
-  weighted_team: number | null;
-  weighted_lg: number | null;
-  weight_sum: number;
-  adj: number | null;
-  expected: number | null;
-};
+import { WINDOWS, type WindowName } from "./windows";
+export { WINDOWS, type WindowName };
 
 export type StatFormat = "dec1" | "dec2" | "dec3" | "pct";
+export type StatMeta = { id: string; label: string; fmt: StatFormat };
 
-export type StatRow = {
-  id: string;
-  label: string;
-  fmt: StatFormat;
-  weights: Record<WindowKey, number>;
-  mirror: string | null;
-  home: StatSide;
-  away: StatSide;
-};
+export type StatValues = Record<string, number | null>;
+export type TeamInputs = Record<WindowName, { games: number; stats: StatValues }>;
 
 export type Team = {
   id: string;
@@ -44,8 +23,6 @@ export type Team = {
   final: number | null;
 };
 
-export type Lines = { fga: number; fg3a: number; fta: number; ast: number; tov: number };
-
 export type Game = {
   game_id: string;
   tip_time: string;
@@ -53,26 +30,16 @@ export type Game = {
   neutral: boolean;
   home: Team;
   away: Team;
-  projection: {
-    home_score: number;
-    away_score: number;
-    home_spread: number;
-    away_spread: number;
-    total: number;
-    raw_home: number;
-    raw_away: number;
-    possessions: number;
-  };
-  lines: { home: Lines; away: Lines };
-  stats: StatRow[];
 };
 
+// One slate: the games and the stat inputs as of that date (games before it).
 export type Slate = {
   date: string;
   season: number;
   generated_at: string;
-  settings: { missing_window: string; expected_formula: string; league_avg: string; rate_method: string };
   games: Game[];
+  teams: Record<string, TeamInputs>;
+  league: Record<WindowName, StatValues>;
 };
 
 function readJson<T>(file: string): T | null {
@@ -109,7 +76,7 @@ export type StatsData = {
   generated_at: string;
   league_avg: string;
   rate_method: string;
-  stats: { id: string; label: string; fmt: StatFormat }[];
+  stats: StatMeta[];
   windows: string[];
   team_stats: StatsRow[];
   league_averages: StatsRow[];
@@ -117,4 +84,9 @@ export type StatsData = {
 
 export function getStats(): StatsData | null {
   return readJson<StatsData>(path.join("stats", "stats.json"));
+}
+
+// Stat names and formats, for pickers and tables.
+export function getStatList(): StatMeta[] {
+  return getStats()?.stats ?? [];
 }

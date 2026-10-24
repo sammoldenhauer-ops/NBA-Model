@@ -1,0 +1,18 @@
+{
+  "rows": [
+    {
+      "name": "HOME_SCORE",
+      "label": "Home score",
+      "formula": "",
+      "round": true,
+      "show": true
+    },
+    {
+      "name": "AWAY_SCORE",
+      "label": "Away score",
+      "formula": "",
+      "round": true,
+      "show": true
+    }
+  ]
+}
