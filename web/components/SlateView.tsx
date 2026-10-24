@@ -1,8 +1,10 @@
 import Link from "next/link";
 import type { Game, Slate, Team } from "@/lib/data";
 import { fmtDateLong, fmtSpread, fmtTip, teamColor } from "@/lib/format";
-import { evaluateGame, type GameResult, type Model } from "@/lib/model";
+import { scoreGame, slateSource, type SheetModel } from "@/lib/sheet";
 import DatePicker from "./DatePicker";
+
+type GameResult = { home_score: number | null; away_score: number | null; home_spread: number | null; total: number | null };
 
 function TeamRow({ team, score, spread, isHome }: { team: Team; score: number | null; spread: number | null; isHome: boolean }) {
   return (
@@ -43,8 +45,8 @@ function GameCard({ date, game, r }: { date: string; game: Game; r: GameResult }
   );
 }
 
-export default function SlateView({ slate, dates, model, statLabels }: { slate: Slate; dates: string[]; model: Model; statLabels: string[] }) {
-  const results = slate.games.map((g) => evaluateGame(model, slate, g, statLabels));
+export default function SlateView({ slate, dates, model, statLabels }: { slate: Slate; dates: string[]; model: SheetModel; statLabels: string[] }) {
+  const results = slate.games.map((g) => scoreGame(model, slateSource(slate, g), statLabels));
   const anyScore = results.some((r) => r.home_score != null && r.away_score != null);
   return (
     <>
@@ -60,8 +62,7 @@ export default function SlateView({ slate, dates, model, statLabels }: { slate: 
       </div>
       {!anyScore && (
         <p className="notice small">
-          No projections yet. Build the <code>HOME_SCORE</code> and <code>AWAY_SCORE</code> rows on the{" "}
-          <Link href="/model">Model</Link> page.
+          No projections yet. The slate reads the score cells set on the <Link href="/model">Model</Link> page.
         </p>
       )}
       <div className="grid">
