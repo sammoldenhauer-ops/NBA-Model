@@ -7,12 +7,17 @@ CONFIG <- list(
   #   "pooled"    = ratio of league-wide totals
   league_avg = "team_mean",
 
+  # Possessions = FGA - OREB + TOV + fta_coef x FTA, averaged across both teams.
+  # 0.475 matches TeamRankings; 0.44 is the common textbook value.
+  fta_coef = 0.475,
+
   # Minimum games for the L3 window. The sheet shows L3 for teams with 1-2 games.
   l3_min_games = 1,
 
   # hoopR season_type: 2 = regular season, 3 = playoffs, 5 = play-in.
-  # CHECK: playoffs in or out. Regular season only for now.
-  season_types = c(2),
+  # All three, to match TeamRankings (Sam's sheet source), whose season numbers
+  # include play-in and playoff games. Use c(2) for regular season only.
+  season_types = c(2, 3, 5),
 
   # How games are combined inside a window for rate stats.
   #   "totals" = ratio of summed numerators / summed denominators

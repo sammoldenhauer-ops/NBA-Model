@@ -19,8 +19,9 @@ BOX_COLS <- c(
   tov  = "total_turnovers"
 )
 
-# Team possession estimate (spec #1).
-poss_estimate <- function(fga, oreb, tov, fta) fga - oreb + tov + 0.44 * fta
+# Team possession estimate. 0.475 x FTA matches TeamRankings (the source Sam's
+# sheet used) to within 0.05 for every team; the textbook 0.44 runs ~1 low.
+poss_estimate <- function(fga, oreb, tov, fta, fta_coef = CONFIG$fta_coef) fga - oreb + tov + fta_coef * fta
 
 build_team_games <- function(box, season_types = CONFIG$season_types) {
   missing <- setdiff(c("game_id", "season", "season_type", "game_date", "team_id",
@@ -62,7 +63,7 @@ build_team_games <- function(box, season_types = CONFIG$season_types) {
     dplyr::mutate(
       poss_own = poss_estimate(fga, oreb, tov, fta),
       poss_opp = poss_estimate(opp_fga, opp_oreb, opp_tov, opp_fta),
-      # Both teams in a game share one possession number. CHECK vs sheet source.
+      # Both teams in a game share one possession number (as TeamRankings does).
       poss     = (poss_own + poss_opp) / 2
     ) |>
     dplyr::arrange(game_date, game_id, home_away)

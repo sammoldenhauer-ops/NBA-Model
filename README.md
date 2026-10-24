@@ -77,7 +77,8 @@ Edits are kept in your browser as a draft. To publish: **Download model.json**, 
 `web/` folder on GitHub and commit. Vercel redeploys and every visitor sees the new projections.
 `npx tsx scripts/build-model-template.ts` (in `web/`) rebuilds the starting template, overwriting `model.json`.
 
-Still open: playoffs in or out (regular season only), and whether rate stats within a window should be
+Possessions use 0.475 x FTA and seasons include play-in and playoff games, both to match TeamRankings.
+Still open: whether rate stats within a window should be
 ratio of totals (current) or average of game rates (`pipeline/config.R`).
 
 ## Reproducing the spreadsheet

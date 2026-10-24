@@ -24,8 +24,8 @@ test_that("team-game rows carry opponent stats and shared possessions", {
   t1 <- tg[tg$team_id == "1", ]
   expect_equal(t1$opp_pts, 100)
   expect_equal(t1$opp_dreb, 30)
-  p1 <- 90 - 12 + 14 + 0.44 * 25
-  p2 <- 85 - 8 + 10 + 0.44 * 20
+  p1 <- 90 - 12 + 14 + 0.475 * 25
+  p2 <- 85 - 8 + 10 + 0.475 * 20
   expect_equal(t1$poss, (p1 + p2) / 2)
   expect_equal(tg$poss[1], tg$poss[2])
 
