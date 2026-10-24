@@ -72,7 +72,7 @@ function Picks({ c }: { c: Card }) {
       {conf && (
         <div className="pick-chips">
           <span className={`chip ${tone(conf.ats.p, conf.ats.skill)}`} title={`${conf.ats.edge != null ? `Model vs line: ${conf.ats.edge > 0 ? "+" : ""}${conf.ats.edge.toFixed(1)} pts. ` : ""}${conf.ats.skill ? "" : NO_EDGE}`}>
-            ATS {conf.ats.side ? `${abbr(conf.ats.side)} ${fmtSpread(atsLine!)}` : "—"} <b>{pct(conf.ats.p)}</b>{!conf.ats.skill && " · no edge"}
+            ATS {conf.ats.side ? `${abbr(conf.ats.side)}${atsLine != null ? ` ${fmtSpread(atsLine)}` : ""}` : "—"} <b>{pct(conf.ats.p)}</b>{!conf.ats.skill && " · no edge"}
           </span>
           <span className={`chip ${tone(conf.ou.p, conf.ou.skill)}`} title={`${conf.ou.edge != null ? `Model vs line: ${conf.ou.edge > 0 ? "+" : ""}${conf.ou.edge.toFixed(1)} pts. ` : ""}${conf.ou.skill ? "" : NO_EDGE}`}>
             {conf.ou.side ? (conf.ou.side === "over" ? "Over" : "Under") : "O/U —"} <b>{pct(conf.ou.p)}</b>{!conf.ou.skill && " · no edge"}

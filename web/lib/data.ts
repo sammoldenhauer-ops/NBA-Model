@@ -94,14 +94,20 @@ export function getStatList(): StatMeta[] {
   return getStats()?.stats ?? [];
 }
 
-// Calibrated confidence model + backtest report (web/scripts/backtest.ts).
-import type { ConfidenceModel, Validation } from "./confidence";
+// Confidence report and per-game confidence (web/scripts/confidence.ts).
+import type { GameConfidence, Validation } from "./confidence";
 export type ConfidenceFile = {
   generated_at: string;
-  model: ConfidenceModel;
+  model_hash: string;
+  seasons: number[];
   validation: Validation[];
   accuracy: Record<string, number>;
+  bands: { margin: number[]; total: number[] }[];
 };
+export type ConfidenceGames = { model_hash: string; games: Record<string, GameConfidence> };
 export function getConfidence(): ConfidenceFile | null {
   return readJson<ConfidenceFile>("confidence.json");
+}
+export function getConfidenceGames(): ConfidenceGames | null {
+  return readJson<ConfidenceGames>("confidence_games.json");
 }

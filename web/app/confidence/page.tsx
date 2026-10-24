@@ -20,32 +20,32 @@ function readWeights(): WeightsFile | null {
 }
 
 const pct = (x: number) => (Number.isFinite(x) ? `${(x * 100).toFixed(1)}%` : "—");
-const TITLES: Record<string, { name: string; what: string }> = {
-  ats: { name: "Against the spread", what: "the side the model favours versus the sportsbook spread covers" },
-  ou: { name: "Over / under", what: "the model's over/under call versus the sportsbook total hits" },
-  winner: { name: "Winner", what: "the team the model projects to win wins outright" },
+const WHAT: Record<string, string> = {
+  ats: "the side picked against the sportsbook spread covers",
+  ou: "the over/under pick against the sportsbook total hits",
+  winner: "the team picked to win wins outright",
 };
 
-function MeasureTable({ v }: { v: Validation }) {
-  const t = TITLES[v.measure];
-  const skill = v.brier_baseline - v.brier;
+function MeasureCard({ v }: { v: Validation }) {
+  const breakEven = v.measure !== "winner";
   return (
     <section className="card conf-card">
-      <h3>{t.name}</h3>
+      <h3>{v.title}</h3>
       <p className="small muted">
-        Probability that {t.what}. Tested on {v.n.toLocaleString()} games the calibration never saw (each season predicted by a model fit on the
-        other seasons).
+        Probability that {WHAT[v.measure]}. Built from: {v.features.join(", ")}. Every number below is from seasons the model never saw
+        (each season predicted by a model fit on the others).
       </p>
       <p className="small">
-        Hit rate <b>{pct(v.hit_rate)}</b>
-        {v.measure !== "winner" && <span className="muted"> (−110 odds need 52.4% to break even)</span>} · Brier {v.brier.toFixed(4)} vs{" "}
-        {v.brier_baseline.toFixed(4)} for a flat guess{" "}
-        <span className={skill > 0.0005 ? "pos" : "muted"}>{skill > 0.0005 ? "(adds information)" : "(no better than a flat guess)"}</span>
+        Overall <b>{pct(v.hit_rate)}</b> on {v.n.toLocaleString()} games
+        {" "}({v.per_season.map((s) => `${s.season - 1}-${String(s.season).slice(2)}: ${pct(s.hit_rate)}`).join(", ")})
+        {breakEven && <span className="muted"> · −110 odds need 52.4% to break even</span>}
+        {" · "}
+        {v.skill ? <span className="pos">beats a flat guess</span> : <span className="muted">no better than a flat guess, so it shows the base rate</span>}
       </p>
       <div className="two-col">
         <table className="lines">
           <thead>
-            <tr><th className="left">Confidence said</th><th>Games</th><th>Avg said</th><th>Actually hit</th></tr>
+            <tr><th className="left">Confidence shown</th><th>Games</th><th>Avg shown</th><th>Actually hit</th></tr>
           </thead>
           <tbody>
             {v.calibration.map((c) => (
@@ -55,11 +55,22 @@ function MeasureTable({ v }: { v: Validation }) {
         </table>
         <table className="lines">
           <thead>
-            <tr><th className="left">{v.measure === "winner" ? "Projected margin" : "Edge vs line"}</th><th>Games</th><th>Hit rate</th></tr>
+            <tr><th className="left">Only bet when confidence ≥</th><th>Games</th><th>Hit rate</th></tr>
           </thead>
           <tbody>
-            {v.by_edge.map((b) => (
-              <tr key={b.bucket}><td className="left">{b.bucket} pts</td><td>{b.n}</td><td className="strong">{pct(b.hit_rate)}</td></tr>
+            {v.thresholds.filter((t) => t.n >= 20).map((t) => (
+              <tr key={t.min}>
+                <td className="left">{Math.round(t.min * 100)}%</td>
+                <td>{t.n}</td>
+                <td className={breakEven && t.hit_rate >= 0.524 ? "strong pos" : "strong"}>{pct(t.hit_rate)}</td>
+              </tr>
+            ))}
+            {v.top.map((t) => (
+              <tr key={`top${t.share}`}>
+                <td className="left muted">Most confident {Math.round(t.share * 100)}%</td>
+                <td className="muted">{t.n}</td>
+                <td className={breakEven && t.hit_rate >= 0.524 ? "pos" : ""}>{pct(t.hit_rate)}</td>
+              </tr>
             ))}
           </tbody>
         </table>
@@ -72,7 +83,7 @@ export default function ConfidencePage() {
   const c = getConfidence();
   const w = readWeights();
   const hash = getModelHash();
-  if (!c) return <p className="muted">No backtest yet.</p>;
+  if (!c?.validation) return <p className="muted">No backtest yet.</p>;
   const a = c.accuracy;
   return (
     <>
@@ -80,30 +91,36 @@ export default function ConfidencePage() {
         <div>
           <h1>Confidence</h1>
           <p className="muted small">
-            Every game from the {c.model.seasons.join(", ")} seasons re-projected through the Model sheet using only stats available before tip-off,
-            then compared with the final score and the sportsbook line. Calibrated {new Date(c.generated_at).toLocaleDateString("en-US")}.
-            {c.model.model_hash !== hash && " The sheet has changed since then; this updates on the next daily run."}
+            Every game from {c.seasons.map((s) => `${s - 1}-${String(s).slice(2)}`).join(", ")} re-projected through the Model sheet with only the stats
+            available before tip-off, then compared with the final score and the sportsbook line. Updated{" "}
+            {new Date(c.generated_at).toLocaleDateString("en-US")}.
+            {c.model_hash !== hash && " The sheet has changed since then; this updates on the next run."}
           </p>
         </div>
       </div>
+
+      <p className="notice small">
+        How to read this: a pick shown at 56% has won about 56% of the time in past seasons it was never trained on. Against the spread and on
+        totals the edges are small: overall hit rates are 51–52%, and only the most confident picks clear the 52.4% needed at −110.
+      </p>
+
+      {c.validation.map((v) => <MeasureCard key={v.measure} v={v} />)}
 
       <h2>Projection accuracy</h2>
       <div className="table-wrap">
         <table className="lines">
           <thead>
-            <tr><th className="left" /><th>Model</th><th>Sportsbook line</th><th>Model bias</th></tr>
+            <tr><th className="left" /><th>Model sheet</th><th>Sportsbook line</th><th>Sheet bias</th></tr>
           </thead>
           <tbody>
-            <tr><td className="left">Average miss, margin (pts)</td><td className="strong">{a.model_margin_mae_same_games.toFixed(2)}</td><td>{a.market_margin_mae.toFixed(2)}</td><td>{a.margin_bias > 0 ? "+" : ""}{a.margin_bias.toFixed(2)} (home)</td></tr>
-            <tr><td className="left">Average miss, total (pts)</td><td className="strong">{a.model_total_mae_same_games.toFixed(2)}</td><td>{a.market_total_mae.toFixed(2)}</td><td>{a.total_bias > 0 ? "+" : ""}{a.total_bias.toFixed(2)}</td></tr>
+            <tr><td className="left">Average miss, margin (pts)</td><td className="strong">{a.margin_mae.toFixed(2)}</td><td>{a.market_margin_mae.toFixed(2)}</td><td>{a.margin_bias > 0 ? "+" : ""}{a.margin_bias.toFixed(2)} (home)</td></tr>
+            <tr><td className="left">Average miss, total (pts)</td><td className="strong">{a.total_mae.toFixed(2)}</td><td>{a.market_total_mae.toFixed(2)}</td><td>{a.total_bias > 0 ? "+" : ""}{a.total_bias.toFixed(2)}</td></tr>
           </tbody>
         </table>
       </div>
       <p className="muted small">
-        Bands on each game (e.g. ±9/16) mean half of past games landed within the first number of the projected margin, and 80% within the second.
+        Bands on each game (e.g. ±9/16) mean half of past games landed within the first number of the sheet&apos;s projected margin, and 80% within the second.
       </p>
-
-      {c.validation.map((v) => <MeasureTable key={v.measure} v={v} />)}
 
       {w && (
         <>
@@ -143,7 +160,7 @@ export default function ConfidencePage() {
       )}
 
       <p className="small">
-        <a href="/data/backtest.csv" download>Download every backtested game (CSV)</a>
+        <a href="/data/backtest.csv" download>Download every backtested game with its features (CSV)</a>
       </p>
     </>
   );

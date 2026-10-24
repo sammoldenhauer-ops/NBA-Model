@@ -4,11 +4,26 @@
 import fs from "node:fs";
 import path from "node:path";
 import zlib from "node:zlib";
-import type { BacktestRow } from "../lib/confidence";
 import type { Slate } from "../lib/data";
 import { scoreGame, slateSource, type SheetModel } from "../lib/sheet";
 
 export const CACHE = path.join("..", "pipeline", "cache");
+
+export type BacktestRow = {
+  season: number;
+  date: string;
+  game_id: string;
+  home: string;
+  away: string;
+  proj_home: number;
+  proj_away: number;
+  actual_home: number;
+  actual_away: number;
+  line_spread: number | null; // home spread (negative = home favoured)
+  line_total: number | null;
+  home_games: number;
+  away_games: number;
+};
 
 export function loadLabels(): string[] {
   return JSON.parse(fs.readFileSync(path.join("public", "data", "stats", "stats.json"), "utf8")).stats.map((s: { label: string }) => s.label);

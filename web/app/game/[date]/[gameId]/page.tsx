@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import SheetGrid from "@/components/SheetGrid";
-import { getConfidence, getDates, getGame, getSlate, getStatList, type Team } from "@/lib/data";
-import { scoreConfidence } from "@/lib/confidence";
+import { getConfidenceGames, getDates, getGame, getSlate, getStatList, type Team } from "@/lib/data";
 import { fmtDateLong, fmtSpread, fmtTip, teamColor } from "@/lib/format";
 import { formatCell, scoreGame, slateSource } from "@/lib/sheet";
 import { getModel } from "@/lib/modelFile";
@@ -39,14 +38,7 @@ export default async function GamePage({ params }: { params: Promise<{ date: str
   const { slate, game } = found;
   const model = getModel();
   const r = scoreGame(model, slateSource(slate, game), getStatList().map((s) => s.label));
-  const cf = getConfidence();
-  const conf = cf && r.home_score != null && r.away_score != null
-    ? scoreConfidence(cf.model, {
-        proj_home: r.home_score, proj_away: r.away_score,
-        line_spread: game.line?.home_spread ?? null, line_total: game.line?.total ?? null,
-        home_games: slate.teams[game.home.id]?.YTD.games ?? 0, away_games: slate.teams[game.away.id]?.YTD.games ?? 0,
-      })
-    : null;
+  const conf = getConfidenceGames()?.games[game.game_id] ?? null;
   const pct = (p: number | null | undefined) => (p == null ? "—" : `${(p * 100).toFixed(1)}%`);
   const abbr = (side: string | null) => (side === "home" ? game.home.abbr : side === "away" ? game.away.abbr : "—");
   const view = (a: string) => {

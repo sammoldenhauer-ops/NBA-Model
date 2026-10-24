@@ -1,6 +1,5 @@
 import Link from "next/link";
-import type { ConfidenceFile, Slate } from "@/lib/data";
-import { scoreConfidence } from "@/lib/confidence";
+import type { ConfidenceGames, Slate } from "@/lib/data";
 import { fmtDateLong } from "@/lib/format";
 import { scoreGame, slateSource, type SheetModel } from "@/lib/sheet";
 import DatePicker from "./DatePicker";
@@ -11,28 +10,18 @@ type Props = {
   dates: string[];
   model: SheetModel;
   statLabels: string[];
-  confidence: ConfidenceFile | null;
+  confidence: ConfidenceGames | null;
   modelHash: string;
 };
 
 export default function SlateView({ slate, dates, model, statLabels, confidence, modelHash }: Props) {
   const cards: Card[] = slate.games.map((g) => {
     const r = scoreGame(model, slateSource(slate, g), statLabels);
-    const conf =
-      confidence && r.home_score != null && r.away_score != null
-        ? scoreConfidence(confidence.model, {
-            proj_home: r.home_score,
-            proj_away: r.away_score,
-            line_spread: g.line?.home_spread ?? null,
-            line_total: g.line?.total ?? null,
-            home_games: slate.teams[g.home.id]?.YTD.games ?? 0,
-            away_games: slate.teams[g.away.id]?.YTD.games ?? 0,
-          })
-        : null;
+    const conf = confidence?.games[g.game_id] ?? null;
     return { game: g, home_score: r.home_score, away_score: r.away_score, home_spread: r.home_spread, total: r.total, conf };
   });
   const anyScore = cards.some((c) => c.home_score != null && c.away_score != null);
-  const stale = confidence && confidence.model.model_hash !== modelHash
+  const stale = confidence && confidence.model_hash !== modelHash
     ? "The Model sheet changed since confidence was last calibrated; the percentages update on the next daily run."
     : null;
 

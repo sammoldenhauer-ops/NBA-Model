@@ -11,7 +11,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import type { BacktestRow } from "../lib/confidence";
+import type { BacktestRow } from "./backtest-core";
 import type { SheetModel } from "../lib/sheet";
 import { loadInputs, loadLabels, loadLines, runModel } from "./backtest-core";
 import { prepareSchedule, setSchedule, stageOf, STAGES, type Weights } from "./weights-schedule";

@@ -88,11 +88,14 @@ ratio of totals (current) or average of game rates (`pipeline/config.R`).
   `web/scripts/tune-weights.ts` picks each stage's weights by backtest over the last three seasons (every
   YTD/L3/H/A/Prior combination, scored on margin + total error, checked leave-one-season-out). The daily
   workflow re-tunes on Mondays. Weighted rows skip windows with no games instead of counting them as 0.
-- **Confidence.** `web/scripts/backtest.ts` re-projects every game since 2023-24 through the published sheet with
-  point-in-time stats, joins sportsbook lines (`pipeline/cache/lines.csv`, via ESPN), and calibrates three
-  scores: against the spread, over/under, and winner, plus accuracy bands. A score that doesn't beat a flat guess
-  on held-out seasons falls back to its base rate and is labelled "no proven edge". It re-runs daily and whenever
-  `web/model.json` changes. Report: the site's **Confidence** page.
+- **Confidence.** `web/scripts/confidence.ts` re-projects every game since 2023-24 through the published sheet with
+  point-in-time stats, joins sportsbook lines (`pipeline/cache/lines.csv`, via ESPN), and fits three models,
+  each validated leave-one-season-out (a model that doesn't beat a flat guess shows its base rate):
+  - against the spread: sheet edge vs the line, recent cover margin, record vs point differential
+  - over/under: 3P% luck made and allowed (YTD vs last season, shrunk over the first 20 games)
+  - winner: market spread, record vs point differential (sheet margin when there's no line)
+  It writes `public/data/confidence_games.json` (every slate game) and the report behind the **Confidence** page.
+  Research scripts: `research.ts`, `research2.ts` (what was tested and rejected).
 - Historical inputs live in `pipeline/cache/inputs_<season>.ndjson.gz`; rebuild them with
   `Rscript pipeline/backtest_inputs.R 2024 2025 2026` after changing stat definitions.
 

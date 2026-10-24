@@ -1,7 +1,7 @@
 // Compare window-weight schemes on the same historical games.
 //   cd web && npx tsx scripts/experiment-weights.ts
 import fs from "node:fs";
-import type { BacktestRow } from "../lib/confidence";
+import type { BacktestRow } from "./backtest-core";
 import type { SheetModel } from "../lib/sheet";
 import { loadInputs, loadLabels, loadLines, runModel } from "./backtest-core";
 

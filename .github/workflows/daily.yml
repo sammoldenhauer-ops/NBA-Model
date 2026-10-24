@@ -86,7 +86,7 @@ jobs:
 
       - name: Backtest and calibrate confidence
         working-directory: web
-        run: npx tsx scripts/backtest.ts
+        run: npx tsx scripts/confidence.ts
 
       # Only reached if every step above passed, so a failed run leaves the
       # previous data live.
