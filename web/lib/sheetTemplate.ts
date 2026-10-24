@@ -51,6 +51,16 @@ const SECTIONS: Def[][] = [
     { id: "ast_to", label: "Ass./TO Ratio", fmt: "dec3", mirror: "opp_ast_to" },
     { id: "opp_ast_to", label: "Opp. Ass./TO Ratio", fmt: "dec3", mirror: "ast_to" },
   ],
+  [
+    { id: "reb", label: "Rebounds/Game", fmt: "dec1", mirror: "opp_reb" },
+    { id: "opp_reb", label: "Opp. Rebounds/Game", fmt: "dec1", mirror: "reb" },
+    { id: "oreb", label: "Off. Rebounds/Game", fmt: "dec1", mirror: "opp_oreb" },
+    { id: "opp_oreb", label: "Opp. Off. Rebounds/Game", fmt: "dec1", mirror: "oreb" },
+    { id: "blk", label: "Blocks/Game", fmt: "dec1", mirror: "opp_blk" },
+    { id: "opp_blk", label: "Opp. Blocks/Game", fmt: "dec1", mirror: "blk" },
+    { id: "stl", label: "Steals/Game", fmt: "dec1", mirror: "opp_stl" },
+    { id: "opp_stl", label: "Opp. Steals/Game", fmt: "dec1", mirror: "stl" },
+  ],
 ];
 
 export const DEFAULT_WEIGHTS = [10, 0, 0, 90]; // YTD, L3, H/A, Prior
@@ -145,7 +155,10 @@ export function buildTemplate(weights = DEFAULT_WEIGHTS): SheetModel {
   set("C5", "=B4-B5", "dec1");
   set("D4", "=B4+B5", "dec1");
   set("D5", "=B4+B5", "dec1");
-  const line: [string, string][] = [["E", "fga"], ["F", "fg3a"], ["G", "fta"], ["J", "ast"], ["M", "tov"]];
+  const line: [string, string][] = [
+    ["E", "fga"], ["F", "fg3a"], ["G", "fta"], ["H", "reb"], ["I", "oreb"],
+    ["J", "ast"], ["K", "blk"], ["L", "stl"], ["M", "tov"],
+  ];
   for (const [col, id] of line) {
     set(`${col}4`, `=K${weightedRow[id]}`, "dec1");
     set(`${col}5`, `=L${weightedRow[id]}`, "dec1");

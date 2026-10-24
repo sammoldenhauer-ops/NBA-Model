@@ -39,7 +39,15 @@ STAT_DEFS <- tibble::tribble(
   "ast",          "Ass./Game",              "count", "dec1",
   "opp_ast",      "Opp. Ass./Game",         "count", "dec1",
   "ast_to",       "Ass./TO Ratio",          "rate",  "dec3",
-  "opp_ast_to",   "Opp. Ass./TO Ratio",     "rate",  "dec3"
+  "opp_ast_to",   "Opp. Ass./TO Ratio",     "rate",  "dec3",
+  "reb",          "Rebounds/Game",          "count", "dec1",
+  "opp_reb",      "Opp. Rebounds/Game",     "count", "dec1",
+  "oreb",         "Off. Rebounds/Game",     "count", "dec1",
+  "opp_oreb",     "Opp. Off. Rebounds/Game", "count", "dec1",
+  "blk",          "Blocks/Game",            "count", "dec1",
+  "opp_blk",      "Opp. Blocks/Game",       "count", "dec1",
+  "stl",          "Steals/Game",            "count", "dec1",
+  "opp_stl",      "Opp. Steals/Game",       "count", "dec1"
 )
 
 # Window names as they appear in the output files and in formula references.
@@ -81,7 +89,15 @@ stat_components <- function(tg) {
     ast          = list(ast, one),
     opp_ast      = list(opp_ast, one),
     ast_to       = list(ast, tov),
-    opp_ast_to   = list(opp_ast, opp_tov)
+    opp_ast_to   = list(opp_ast, opp_tov),
+    reb          = list(reb, one),
+    opp_reb      = list(opp_reb, one),
+    oreb         = list(oreb, one),
+    opp_oreb     = list(opp_oreb, one),
+    blk          = list(blk, one),
+    opp_blk      = list(opp_blk, one),
+    stl          = list(stl, one),
+    opp_stl      = list(opp_stl, one)
   ))
 }
 

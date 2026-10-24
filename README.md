@@ -11,7 +11,7 @@ Full spec: [docs/NBA_MODEL_SPEC.md](docs/NBA_MODEL_SPEC.md).
 ```
 pipeline/
   config.R       season types, league-average and rate methods
-  stats.R        the 33 stat definitions (numerator / denominator per team-game)
+  stats.R        the 41 stat definitions (numerator / denominator per team-game)
   fetch.R        hoopR box scores + schedule, ESPN fallback for games missing from the bulk file
   team_games.R   one row per team per game with opponent stats joined, possessions
   windows.R      YTD / L3 / H/A / Prior team values and league averages as of a date
@@ -29,7 +29,7 @@ Every run writes the model's inputs to `web/public/data/stats/` (overwritten dai
 
 | File | Contents |
 |---|---|
-| `team_stats.csv` | One row per team per window (YTD, L3, Home, Away, Prior) with games played and all 33 stats |
+| `team_stats.csv` | One row per team per window (YTD, L3, Home, Away, Prior) with games played and all 41 stats |
 | `league_averages.csv` | League average per window (mean of the 30 teams) |
 | `team_games.csv` | Every team-game this season and last: box score, opponent box, possessions, per-game stats |
 | `slate.csv` | Today's games and tip times (UTC) |
