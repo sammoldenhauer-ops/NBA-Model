@@ -113,3 +113,42 @@ test_that("slate inputs carry every window and stat for each team, plus league a
   lg <- league_inputs(w)
   expect_equal(names(lg), c("YTD", "L3", "Home", "Away", "Prior"))
 })
+
+test_that("rest days and strength of schedule use only games before the date", {
+  # T1 beats T2 by 10 (Oct 21), T3 beats T1 by 4 (Oct 22), T2 beats T3 by 6 (Oct 24).
+  box <- rbind(
+    box_row(1, "2026-10-21", 1, "home", 110), box_row(1, "2026-10-21", 2, "away", 100),
+    box_row(2, "2026-10-22", 3, "home", 104), box_row(2, "2026-10-22", 1, "away", 100),
+    box_row(3, "2026-10-24", 2, "home", 96),  box_row(3, "2026-10-24", 3, "away", 90)
+  )
+  long <- stats_long(build_team_games(box))
+  val <- function(w, team, stat) w$team$value[w$team$team_id == team & w$team$stat == stat & w$team$window == "ytd"]
+
+  w <- compute_windows(long, 2027, "2026-10-23")   # game 3 not played yet
+  expect_equal(val(w, "1", "rest_days"), 1)        # played Oct 22: back-to-back on Oct 23
+  expect_equal(val(w, "2", "rest_days"), 2)
+  # SOS = average point margin of opponents faced: T1 faced T2 (-10) and T3 (+4).
+  expect_equal(val(w, "1", "sos"), (-10 + 4) / 2)
+  expect_equal(val(w, "2", "sos"), (10 - 4) / 2)    # T2 faced T1 (+10 - 4) / 2 games = 3
+
+  w <- compute_windows(long, 2027, "2026-10-25")
+  expect_equal(val(w, "3", "sos"), mean(c((10 - 4) / 2, (-10 + 6) / 2)))  # faced T1 (+3) and T2 (-2)
+  ti <- team_inputs(w, "1")
+  expect_equal(ti$YTD$stats[["Rest Days"]], 3)
+  expect_equal(ti$YTD$games, 2)
+  expect_true(is.na(ti$L3$stats[["SOS"]]))
+  # Conference seeds: T1 and T2 are East (both 1-1, so id decides), T3 is West.
+  expect_equal(c(val(w, "1", "seed"), val(w, "2", "seed"), val(w, "3", "seed")), c(1, 2, 1))
+})
+
+test_that("conference seeds rank by win % within each conference", {
+  box <- rbind(
+    box_row(1, "2026-10-21", 1, "home", 110), box_row(1, "2026-10-21", 2, "away", 100),   # East: ATL beats BOS
+    box_row(2, "2026-10-21", 6, "home", 99),  box_row(2, "2026-10-21", 7, "away", 105),   # West: DEN beats DAL
+    box_row(3, "2026-10-22", 2, "home", 120), box_row(3, "2026-10-22", 6, "away", 90)     # BOS beats DAL
+  )
+  w <- compute_windows(stats_long(build_team_games(box)), 2027, "2026-10-23")
+  val <- function(team) w$team$value[w$team$team_id == team & w$team$stat == "seed"]
+  expect_equal(c(val("1"), val("2")), c(1, 2))   # ATL 1-0, BOS 1-1
+  expect_equal(c(val("7"), val("6")), c(1, 2))   # DEN 1-0, DAL 0-2
+})

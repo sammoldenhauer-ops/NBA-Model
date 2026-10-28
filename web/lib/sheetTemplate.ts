@@ -306,3 +306,169 @@ export function addPlayerProjection(m: SheetModel, hcaRow: number): number {
   }
   return r + 5;
 }
+
+// Schedule, rest & rating section, replacing the player-based blend weight: the home
+// margin becomes a weighted mix of the sheet's stat margin, the player-based margin and a
+// schedule-adjusted rating (YTD point margin + SOS, shrunk early in the season), plus a
+// back-to-back penalty. Weights fit on 2023-26 held-out seasons (scripts/research8.ts).
+export type MarginParams = { homeCourt: number; wStat: number; wPlayer: number; wRating: number; b2b: number; shrink: number };
+export const MARGIN_DEFAULTS: MarginParams = { homeCourt: 2, wStat: 0.3, wPlayer: 0.35, wRating: 0.4, b2b: 2, shrink: 10 };
+const SCHEDULE_HEADER = "Schedule, rest & rating";
+
+export function addScheduleRating(m: SheetModel, p: MarginParams = MARGIN_DEFAULTS): number {
+  const rowOf = (label: string) => {
+    const hit = Object.entries(m.cells).find(([a, v]) => /^A\d+$/.test(a) && v === label);
+    return hit ? Number(hit[0].slice(1)) : null;
+  };
+  const set = (a: string, v: string, f?: CellFormat) => {
+    m.cells[a] = v;
+    if (f) m.formats[a] = f;
+  };
+  const hca = rowOf("Home court (pts)"), str = rowOf("Lineup strength (net / 100)");
+  const player = rowOf("Player-based home margin"), sheet = rowOf("Sheet home margin");
+  if (!hca || !str || !player || !sheet) throw new Error("Add the Home court and Player-based sections first");
+  set(`B${hca}`, String(p.homeCourt));
+  set(`D${hca}`, "2 fit best on 2023-26 held-out seasons alongside the Schedule, rest & rating section");
+
+  const existing = rowOf(SCHEDULE_HEADER);
+  if (existing) {
+    const r = existing;
+    set(`B${r + 2}`, String(p.b2b));
+    set(`B${r + 7}`, String(p.shrink));
+    set(`B${r + 9}`, String(p.wStat));
+    set(`B${r + 10}`, String(p.wPlayer));
+    set(`B${r + 11}`, String(p.wRating));
+    return r + 13;
+  }
+
+  // The old blend weight + its score adjustment are replaced by the weights below.
+  const blend = rowOf("Blend weight");
+  if (blend) {
+    for (const c of "ABCD") {
+      delete m.cells[`${c}${blend}`];
+      delete m.cells[`${c}${blend + 1}`];
+    }
+    delete m.styles[String(blend + 1)];
+    m.cells.B4 = m.cells.B4.replace(`+B${blend + 1}`, "");
+    m.cells.B5 = m.cells.B5.replace(`+C${blend + 1}`, "");
+  }
+
+  const maxRow = Math.max(...Object.keys(m.cells).map((a) => Number(a.replace(/^[A-Z]+/, ""))));
+  const r = maxRow + 2;
+  m.styles[String(r)] = "header";
+  set(`A${r}`, SCHEDULE_HEADER);
+  set(`B${r}`, "Home");
+  set(`C${r}`, "Away");
+  set(`D${r}`, "Notes");
+  set(`A${r + 1}`, "Rest days");
+  set(`B${r + 1}`, `=IFERROR([Home YTD Rest Days],"--")`, "int");
+  set(`C${r + 1}`, `=IFERROR([Away YTD Rest Days],"--")`, "int");
+  set(`D${r + 1}`, "Days since the team's last game; 1 = second night of a back-to-back");
+  set(`A${r + 2}`, "Back-to-back penalty (pts)");
+  set(`B${r + 2}`, String(p.b2b), "dec1");
+  set(`D${r + 2}`, "Taken off a team on the second night of a back-to-back");
+  set(`A${r + 3}`, "Point margin YTD");
+  set(`B${r + 3}`, "=IFERROR([Home YTD Points/Game]-[Home YTD Opp. Points/Game],0)", "dec1");
+  set(`C${r + 3}`, "=IFERROR([Away YTD Points/Game]-[Away YTD Opp. Points/Game],0)", "dec1");
+  set(`A${r + 4}`, "Schedule strength (SOS)");
+  set(`B${r + 4}`, "=IFERROR(IF(ISNUMBER([Home YTD SOS]),[Home YTD SOS],0),0)", "dec1");
+  set(`C${r + 4}`, "=IFERROR(IF(ISNUMBER([Away YTD SOS]),[Away YTD SOS],0),0)", "dec1");
+  set(`D${r + 4}`, "Average point margin of the opponents faced so far");
+  set(`A${r + 5}`, "Games played");
+  set(`B${r + 5}`, "=[Home YTD Games]", "int");
+  set(`C${r + 5}`, "=[Away YTD Games]", "int");
+  set(`A${r + 6}`, "Rating (margin + SOS)");
+  set(`B${r + 6}`, `=B${r + 3}+B${r + 4}`, "dec1");
+  set(`C${r + 6}`, `=C${r + 3}+C${r + 4}`, "dec1");
+  set(`D${r + 6}`, "Schedule-adjusted point margin per game");
+  set(`A${r + 7}`, "Rating shrink (games)");
+  set(`B${r + 7}`, String(p.shrink), "int");
+  set(`C${r + 7}`, `=AVERAGE(B${r + 5},C${r + 5})/(AVERAGE(B${r + 5},C${r + 5})+B${r + 7})`, "dec2");
+  set(`D${r + 7}`, "C = how much the rating counts: G/(G + shrink); the rest of its weight goes to the sheet stats");
+  m.styles[String(r + 8)] = "header";
+  set(`A${r + 8}`, "Margin blend");
+  set(`B${r + 8}`, "Weight");
+  set(`D${r + 8}`, "Notes");
+  set(`A${r + 9}`, "Sheet stats");
+  set(`B${r + 9}`, String(p.wStat), "dec2");
+  set(`D${r + 9}`, `Sheet home margin (row ${sheet})`);
+  set(`A${r + 10}`, "Player-based");
+  set(`B${r + 10}`, String(p.wPlayer), "dec2");
+  set(`D${r + 10}`, `Player-based home margin less home court (row ${player}); with no lineup data its weight goes to the sheet stats`);
+  set(`A${r + 11}`, "Rating");
+  set(`B${r + 11}`, String(p.wRating), "dec2");
+  set(`D${r + 11}`, "Home rating minus away rating (early season: mostly the sheet stats instead)");
+  set(`A${r + 12}`, "Blended home margin");
+  set(`B${r + 12}`,
+    `=IF(ISNUMBER(B${str})*ISNUMBER(C${str}),B${r + 9}*B${sheet}+B${r + 10}*(B${player}-$B$${hca}),(B${r + 9}+B${r + 10})*B${sheet})+B${r + 11}*(C${r + 7}*(B${r + 6}-C${r + 6})+(1-C${r + 7})*B${sheet})`, "dec1");
+  set(`D${r + 12}`, "Before home court, injuries and rest. The weights add to more than 1 on purpose: each piece alone runs too narrow");
+  m.styles[String(r + 13)] = "bold";
+  set(`A${r + 13}`, "Score adjustment");
+  set(`B${r + 13}`, `=(B${r + 12}-B${sheet})/2+IF(B${r + 1}=1,-$B$${r + 2}/2,0)+IF(C${r + 1}=1,$B$${r + 2}/2,0)`, "dec2");
+  set(`C${r + 13}`, `=-B${r + 13}`, "dec2");
+  m.rows = Math.max(m.rows, r + 20);
+  for (const [cell, col] of [["B4", "B"], ["B5", "C"]] as const) {
+    const f = (m.cells[cell] ?? "").replace(/\s+/g, "");
+    const mm = /^=MROUND\((.*),0\.5\)$/.exec(f);
+    if (mm && !f.includes(`${col}${r + 13}`)) m.cells[cell] = `=MROUND(${mm[1]}+${col}${r + 13},0.5)`;
+  }
+  return r + 13;
+}
+
+// Motivation section: a team outside the play-in spots (conference seed 11+) late in the
+// season (65+ games) has finished ~4.5 points worse than the stats say on 2023-26: it is
+// playing for lottery odds. Penalty fit on held-out seasons (scripts/research9.ts).
+export type MotivationParams = { tank: number; seedFrom: number; minGames: number };
+export const MOTIVATION_DEFAULTS: MotivationParams = { tank: 4.5, seedFrom: 11, minGames: 65 };
+const MOTIVATION_HEADER = "Motivation";
+
+export function addMotivation(m: SheetModel, p: MotivationParams = MOTIVATION_DEFAULTS): number {
+  const set = (a: string, v: string, f?: CellFormat) => {
+    m.cells[a] = v;
+    if (f) m.formats[a] = f;
+  };
+  const hit = Object.entries(m.cells).find(([a, v]) => /^A\d+$/.test(a) && v === MOTIVATION_HEADER);
+  if (hit) {
+    const r = Number(hit[0].slice(1));
+    set(`B${r + 4}`, String(p.tank));
+    set(`B${r + 5}`, String(p.seedFrom));
+    set(`B${r + 6}`, String(p.minGames));
+    return r + 7;
+  }
+  const maxRow = Math.max(...Object.keys(m.cells).map((a) => Number(a.replace(/^[A-Z]+/, ""))));
+  const r = maxRow + 2;
+  m.styles[String(r)] = "header";
+  set(`A${r}`, MOTIVATION_HEADER);
+  set(`B${r}`, "Home");
+  set(`C${r}`, "Away");
+  set(`D${r}`, "Notes");
+  set(`A${r + 1}`, "Conference seed");
+  set(`B${r + 1}`, `=IFERROR(IF(ISNUMBER([Home YTD Conference Seed]),[Home YTD Conference Seed],"--"),"--")`, "int");
+  set(`C${r + 1}`, `=IFERROR(IF(ISNUMBER([Away YTD Conference Seed]),[Away YTD Conference Seed],"--"),"--")`, "int");
+  set(`D${r + 1}`, "Place in the conference by win % (no tiebreakers)");
+  set(`A${r + 2}`, "Games played");
+  set(`B${r + 2}`, "=[Home YTD Games]", "int");
+  set(`C${r + 2}`, "=[Away YTD Games]", "int");
+  set(`A${r + 3}`, "Out of the play-in (tanking)");
+  set(`B${r + 3}`, `=IF(ISNUMBER(B${r + 1}),(B${r + 1}>=$B$${r + 5})*(B${r + 2}>=$B$${r + 6}),0)`, "int");
+  set(`C${r + 3}`, `=IF(ISNUMBER(C${r + 1}),(C${r + 1}>=$B$${r + 5})*(C${r + 2}>=$B$${r + 6}),0)`, "int");
+  set(`D${r + 3}`, "1 = playing for lottery odds: the stats overrate these teams late in the season");
+  set(`A${r + 4}`, "Tanking penalty (pts)");
+  set(`B${r + 4}`, String(p.tank), "dec1");
+  set(`D${r + 4}`, "Fit on 2023-26 held-out seasons; tanking teams finished ~4.5 pts worse than the stats");
+  set(`A${r + 5}`, "Seed at or below");
+  set(`B${r + 5}`, String(p.seedFrom), "int");
+  set(`A${r + 6}`, "Games played at least");
+  set(`B${r + 6}`, String(p.minGames), "int");
+  m.styles[String(r + 7)] = "bold";
+  set(`A${r + 7}`, "Score adjustment");
+  set(`B${r + 7}`, `=(C${r + 3}-B${r + 3})*$B$${r + 4}/2`, "dec2");
+  set(`C${r + 7}`, `=-B${r + 7}`, "dec2");
+  m.rows = Math.max(m.rows, r + 14);
+  for (const [cell, col] of [["B4", "B"], ["B5", "C"]] as const) {
+    const f = (m.cells[cell] ?? "").replace(/\s+/g, "");
+    const mm = /^=MROUND\((.*),0\.5\)$/.exec(f);
+    if (mm && !f.includes(`${col}${r + 7}`)) m.cells[cell] = `=MROUND(${mm[1]}+${col}${r + 7},0.5)`;
+  }
+  return r + 7;
+}

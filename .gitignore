@@ -5,3 +5,6 @@ node_modules/
 .DS_Store
 backtest/
 pipeline/cache/tune-cache.json
+pipeline/cache/research8-cache.json
+pipeline/cache/components.csv
+__pycache__/

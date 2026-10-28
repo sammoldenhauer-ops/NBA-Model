@@ -276,3 +276,34 @@ table.tracking td.neg { color: var(--below); }
 .precedent { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
 .precedent .card h4 { margin: 0 0 4px; font-size: 0.9rem; }
 .prec-line { font-size: 0.74rem; color: var(--muted); margin-top: 4px; }
+
+/* Alt-spread calculator on game tiles */
+.card-link { display: block; color: inherit; }
+.card-link:hover { text-decoration: none; }
+.alt-toggle {
+  font: inherit; font-size: 0.78rem; cursor: pointer; color: var(--accent); background: none; border: 0;
+  padding: 6px 0 0; margin-top: 6px; border-top: 1px solid var(--border); width: 100%; text-align: left;
+}
+.alt { margin-top: 6px; display: grid; gap: 8px; }
+.alt-teams { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.alt-basis { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+.alt-basis .tab { padding: 2px 8px; font-size: 0.78rem; }
+.alt-scroll { max-height: 260px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; }
+.alt-scroll thead th { position: sticky; top: 0; background: var(--surface); z-index: 1; }
+.alt-table tr.alt-line td { font-weight: 650; }
+.alt-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.alt-table th, .alt-table td { text-align: right; padding: 2px 4px; border-top: 1px solid var(--border); }
+.alt-table th { color: var(--muted); font-weight: 500; }
+.alt-table .left { text-align: left; }
+.alt-table tbody tr { cursor: pointer; }
+.alt-table tbody tr:hover td { background: var(--head); }
+.alt-table tr.alt-sel td { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.alt-form { display: flex; flex-wrap: wrap; gap: 6px 12px; }
+.alt-form label { display: flex; align-items: center; gap: 4px; }
+.alt-out { display: grid; gap: 3px; }
+.alt-out .neg, .alt-table td.neg { color: var(--below); }
+.alt-table td.pos { color: #16a34a; }
+.alt-note { margin: 0; }
+.alt-card { max-width: 520px; }
+.late-note { color: var(--below); }
+.tag-tank { color: var(--below); border-color: var(--below); }

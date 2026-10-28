@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { Game, Team } from "@/lib/data";
+import { LATE_NOTE, type AltDists } from "@/lib/altline";
 import type { GameConfidence } from "@/lib/confidence";
+import AltLadder from "./AltLadder";
 import { fmtSpread, fmtTip, teamColor } from "@/lib/format";
 
 export type Card = {
@@ -14,6 +16,8 @@ export type Card = {
   total: number | null; // model
   conf: GameConfidence | null;
   prec?: string[];
+  late?: boolean;
+  tank?: { home: boolean; away: boolean };
 };
 
 type Filters = {
@@ -35,7 +39,9 @@ const tone = (p: number | null | undefined, skill = true) => (p == null || !skil
 const NO_EDGE = "No proven edge: on held-out seasons this call hit at its base rate regardless of the edge, so the score is that base rate.";
 const num = (s: string) => (s.trim() === "" || !Number.isFinite(Number(s)) ? null : Number(s));
 
-function TeamRow({ team, score, spread, isHome }: { team: Team; score: number | null; spread: number | null; isHome: boolean }) {
+const TANK_NOTE = "Outside the play-in spots with 65+ games played: tanking teams have finished ~4.5 pts worse than their stats (the sheet's Motivation section takes this off)";
+
+function TeamRow({ team, score, spread, isHome, tank }: { team: Team; score: number | null; spread: number | null; isHome: boolean; tank?: boolean }) {
   return (
     <div className="team-row">
       <span className="swatch" style={{ background: teamColor(team.color) }} />
@@ -44,6 +50,7 @@ function TeamRow({ team, score, spread, isHome }: { team: Team; score: number | 
         <span className="abbr">{team.abbr}</span>
         <span className="full muted">{team.name}</span>
         {isHome && <span className="tag">home</span>}
+        {tank && <span className="tag tag-tank" title={TANK_NOTE}>tanking</span>}
       </span>
       <span className="spread">{spread == null ? "—" : fmtSpread(spread)}</span>
       <span className="score">{score == null ? "—" : score.toFixed(1)}</span>
@@ -81,41 +88,48 @@ function Picks({ c }: { c: Card }) {
           <span className={`chip ${tone(conf.winner.p, conf.winner.skill)}`}>
             Win {abbr(conf.winner.team)} <b>{pct(conf.winner.p)}</b>
           </span>
-          <span className="chip plain" title="Half of past games landed within the first number of the projection, 80% within the second">
-            ±{conf.margin_band[0].toFixed(0)}/{conf.margin_band[1].toFixed(0)} margin · ±{conf.total_band[0].toFixed(0)}/{conf.total_band[1].toFixed(0)} total
-          </span>
         </div>
       )}
     </div>
   );
 }
 
-function GameCard({ date, c }: { date: string; c: Card }) {
+function GameCard({ date, c, alt }: { date: string; c: Card; alt: AltDists | null }) {
   const g = c.game;
   const isFinal = g.home.final != null && g.away.final != null;
+  const [open, setOpen] = useState(false);
   return (
-    <Link className="card game-card" href={`/game/${date}/${g.game_id}`}>
-      <div className="card-head">
-        <span className="muted small">{isFinal ? "Final" : fmtTip(g.tip_time)}</span>
-        <span className="muted small">
-          Total <strong className="fg">{c.total == null ? "—" : c.total.toFixed(1)}</strong>
-        </span>
-      </div>
-      <div className="cols-head muted small">
-        <span />
-        <span className="spread">Spread</span>
-        <span className="score">Proj</span>
-        {isFinal && <span className="final">Actual</span>}
-      </div>
-      <TeamRow team={g.away} score={c.away_score} spread={c.home_spread == null ? null : -c.home_spread} isHome={false} />
-      <TeamRow team={g.home} score={c.home_score} spread={c.home_spread} isHome={!g.neutral} />
-      <Picks c={c} />
-      {c.prec?.map((t) => <div key={t} className="prec-line">{t}</div>)}
-    </Link>
+    <div className="card game-card">
+      <Link className="card-link" href={`/game/${date}/${g.game_id}`}>
+        <div className="card-head">
+          <span className="muted small">{isFinal ? "Final" : fmtTip(g.tip_time)}</span>
+          <span className="muted small">
+            Total <strong className="fg">{c.total == null ? "—" : c.total.toFixed(1)}</strong>
+          </span>
+        </div>
+        <div className="cols-head muted small">
+          <span />
+          <span className="spread">Spread</span>
+          <span className="score">Proj</span>
+          {isFinal && <span className="final">Actual</span>}
+        </div>
+        <TeamRow team={g.away} score={c.away_score} spread={c.home_spread == null ? null : -c.home_spread} isHome={false} tank={c.tank?.away} />
+        <TeamRow team={g.home} score={c.home_score} spread={c.home_spread} isHome={!g.neutral} tank={c.tank?.home} />
+        <Picks c={c} />
+        {c.prec?.map((t) => <div key={t} className="prec-line">{t}</div>)}
+        {c.late && !isFinal && <div className="prec-line late-note">{LATE_NOTE}</div>}
+      </Link>
+      {alt && g.line && !isFinal && (
+        <>
+          <button className="alt-toggle small" onClick={() => setOpen((o) => !o)}>{open ? "▾" : "▸"} Alt spreads &amp; multipliers</button>
+          {open && <AltLadder dists={alt} homeLine={g.line.home_spread} projHomeMargin={c.home_spread == null ? null : -c.home_spread} home={g.home.abbr} away={g.away.abbr} late={c.late} />}
+        </>
+      )}
+    </div>
   );
 }
 
-export default function SlateBoard({ date, cards, staleNote }: { date: string; cards: Card[]; staleNote?: string | null }) {
+export default function SlateBoard({ date, cards, staleNote, alt }: { date: string; cards: Card[]; staleNote?: string | null; alt: AltDists | null }) {
   const [f, setF] = useState<Filters>(DEFAULTS);
   useEffect(() => {
     try {
@@ -216,7 +230,7 @@ export default function SlateBoard({ date, cards, staleNote }: { date: string; c
       {staleNote && <p className="notice small">{staleNote}</p>}
       <div className="grid">
         {shown.map((c) => (
-          <GameCard key={c.game.game_id} date={date} c={c} />
+          <GameCard key={c.game.game_id} date={date} c={c} alt={alt} />
         ))}
       </div>
     </>

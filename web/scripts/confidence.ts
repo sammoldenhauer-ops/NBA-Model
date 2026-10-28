@@ -15,6 +15,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { buildAltDist, fitScale, modelCentre, type AltDists } from "../lib/altline";
 import { fitLogit, predictLogit, type Calibration, type GameConfidence, type Measure, type Validation } from "../lib/confidence";
 import type { Slate } from "../lib/data";
 import { scoreGame, slateSource, type SheetModel } from "../lib/sheet";
@@ -149,6 +150,15 @@ const bands = [0, 1, 2].map((st) => {
   return { margin: [quant(me, 0.5), quant(me, 0.8)], total: [quant(te, 0.5), quant(te, 0.8)] };
 });
 
+// ---- alternate spreads: how games finished against the book spread, and against the
+// sheet's projected margin (rescaled; the sheet's margins run too narrow) -----------------
+const marginOf = (g: GameFeatures) => g.finalHome! - g.finalAway!;
+const scale = fitScale(fitGames.map((g) => ({ proj: g.projHome! - g.projAway!, margin: marginOf(g) })));
+const alt_spread: AltDists = {
+  book: buildAltDist(fitGames.filter((g) => g.spread != null).map((g) => ({ expected: -g.spread!, margin: marginOf(g) })), seasons),
+  model: { ...scale, ...buildAltDist(fitGames.map((g) => ({ expected: modelCentre(scale, g.projHome! - g.projAway!), margin: marginOf(g) })), seasons) },
+};
+
 // ---- score every slate game -----------------------------------------------------------
 const slateIds = new Set<string>();
 for (const f of fs.readdirSync(DATA).filter((x) => /^\d{4}-\d{2}-\d{2}\.json$/.test(x))) {
@@ -198,7 +208,7 @@ const accuracy = {
   market_total_mae: mean(withLine.map((g) => Math.abs(g.finalHome! + g.finalAway! - g.total!))),
 };
 fs.writeFileSync(path.join(DATA, "confidence.json"), JSON.stringify({ generated_at: new Date().toISOString(), model_hash, seasons, validation, accuracy, bands }, null, 1) + "\n");
-fs.writeFileSync(path.join(DATA, "confidence_games.json"), JSON.stringify({ model_hash, games: perGame }) + "\n");
+fs.writeFileSync(path.join(DATA, "confidence_games.json"), JSON.stringify({ model_hash, games: perGame, alt_spread }) + "\n");
 const cols: (keyof GameFeatures)[] = ["season", "date", "game_id", "away", "home", "projAway", "projHome", "finalAway", "finalHome", "spread", "total", "awayGames", "homeGames", "cover10", "recordLuck", "shot3made", "shot3allowed"];
 fs.writeFileSync(path.join(DATA, "backtest.csv"), [cols.join(","), ...done.map((g) => cols.map((c) => g[c] ?? "").join(","))].join("\n") + "\n");
 

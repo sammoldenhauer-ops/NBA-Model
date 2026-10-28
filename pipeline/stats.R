@@ -47,7 +47,11 @@ STAT_DEFS <- tibble::tribble(
   "blk",          "Blocks/Game",            "count", "dec1",
   "opp_blk",      "Opp. Blocks/Game",       "count", "dec1",
   "stl",          "Steals/Game",            "count", "dec1",
-  "opp_stl",      "Opp. Steals/Game",       "count", "dec1"
+  "opp_stl",      "Opp. Steals/Game",       "count", "dec1",
+  # Context, YTD window only (compute_windows, not from box scores):
+  "rest_days",    "Rest Days",              "context", "int",
+  "sos",          "SOS",                    "context", "dec1",
+  "seed",         "Conference Seed",        "context", "int"
 )
 
 # Window names as they appear in the output files and in formula references.
@@ -104,7 +108,7 @@ stat_components <- function(tg) {
 # Long table: one row per team-game per stat, with num and den.
 stats_long <- function(tg) {
   comps <- stat_components(tg)
-  stopifnot(identical(sort(names(comps)), sort(STAT_DEFS$id)))
+  stopifnot(identical(sort(names(comps)), sort(STAT_DEFS$id[STAT_DEFS$kind != "context"])))
   keys <- tg[, c("season", "game_id", "game_date", "team_id", "home_away")]
   dplyr::bind_rows(lapply(names(comps), function(s) {
     dplyr::mutate(keys, stat = s, num = comps[[s]][[1]], den = comps[[s]][[2]])

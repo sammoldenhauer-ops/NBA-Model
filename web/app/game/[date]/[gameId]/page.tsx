@@ -1,3 +1,5 @@
+import AltLadder from "@/components/AltLadder";
+import { isLateSeason } from "@/lib/altline";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import SheetGrid from "@/components/SheetGrid";
@@ -40,7 +42,9 @@ export default async function GamePage({ params }: { params: Promise<{ date: str
   const { slate, game } = found;
   const model = getModel();
   const r = scoreGame(model, slateSource(slate, game), getStatList().map((s) => s.label));
-  const conf = getConfidenceGames()?.games[game.game_id] ?? null;
+  const confGames = getConfidenceGames();
+  const conf = confGames?.games[game.game_id] ?? null;
+  const alt = confGames?.alt_spread ?? null;
   const tf = getTracking();
   const tracking = tf ? readRows(tf) : [];
   const pct = (p: number | null | undefined) => (p == null ? "—" : `${(p * 100).toFixed(1)}%`);
@@ -106,6 +110,16 @@ export default async function GamePage({ params }: { params: Promise<{ date: str
           Past games like this landed within ±{conf.margin_band[0].toFixed(1)} of the projected margin half the time (±{conf.margin_band[1].toFixed(1)} for 80%),
           and within ±{conf.total_band[0].toFixed(1)} / ±{conf.total_band[1].toFixed(1)} of the projected total. <Link href="/confidence">How confidence works</Link>
         </p>
+      )}
+
+      {alt && game.line && game.home.final == null && (
+        <>
+          <h2>Alt spreads</h2>
+          <div className="card alt-card">
+            <AltLadder dists={alt} homeLine={game.line.home_spread} projHomeMargin={r.home_spread == null ? null : -r.home_spread} home={game.home.abbr} away={game.away.abbr}
+              late={isLateSeason(slate.teams[game.home.id]?.YTD.games ?? 0, slate.teams[game.away.id]?.YTD.games ?? 0)} />
+          </div>
+        </>
       )}
 
       <h2>History in this spot</h2>

@@ -8,6 +8,38 @@ combine_window <- function(num, den, method = CONFIG$rate_method) {
   if (is.finite(v)) v else NA_real_
 }
 
+# Context stats for the YTD window, from this season's games before as_of:
+#   rest_days  days since the team's last game (1 = second night of a back-to-back)
+#   sos        strength of schedule: average point margin per game of the opponents
+#              faced so far (their own games before as_of)
+#   seed       place in the conference by win %, then wins (no tiebreakers)
+context_rows <- function(cur, as_of, east = CONFIG$east_team_ids) {
+  pts <- cur[cur$stat == "pts", c("game_id", "game_date", "team_id", "num")]
+  opp <- cur[cur$stat == "opp_pts", c("game_id", "team_id", "num")]
+  g <- dplyr::inner_join(pts, opp, by = c("game_id", "team_id"), suffix = c("", "_opp")) |>
+    dplyr::mutate(margin = num - num_opp)
+  if (!nrow(g)) return(NULL)
+  mov <- g |> dplyr::group_by(team_id) |> dplyr::summarise(mov = mean(margin), .groups = "drop")
+  faced <- dplyr::inner_join(g[, c("game_id", "team_id")], g[, c("game_id", "team_id")], by = "game_id",
+                             suffix = c("", "_opp"), relationship = "many-to-many") |>
+    dplyr::filter(team_id != team_id_opp) |>
+    dplyr::left_join(mov, by = c("team_id_opp" = "team_id"))
+  sos <- faced |> dplyr::group_by(team_id) |> dplyr::summarise(value = mean(mov), n = dplyr::n(), .groups = "drop")
+  rest <- g |> dplyr::group_by(team_id) |>
+    dplyr::summarise(value = as.numeric(as.Date(as_of) - max(game_date)), n = dplyr::n(), .groups = "drop")
+  seed <- g |>
+    dplyr::group_by(team_id) |>
+    dplyr::summarise(w = sum(margin > 0), n = dplyr::n(), .groups = "drop") |>
+    dplyr::mutate(conf = team_id %in% east, pct = w / n) |>
+    dplyr::group_by(conf) |>
+    dplyr::arrange(dplyr::desc(pct), dplyr::desc(w), team_id, .by_group = TRUE) |>
+    dplyr::mutate(value = as.numeric(dplyr::row_number())) |>
+    dplyr::ungroup() |>
+    dplyr::select(team_id, value, n)
+  dplyr::bind_rows(dplyr::mutate(rest, stat = "rest_days"), dplyr::mutate(sos, stat = "sos"), dplyr::mutate(seed, stat = "seed")) |>
+    dplyr::mutate(window = "ytd")
+}
+
 summarise_window <- function(df, ...) {
   df |>
     dplyr::group_by(...) |>
@@ -41,6 +73,7 @@ compute_windows <- function(long, season, as_of, last_n = CONFIG$last_n,
   team <- dplyr::bind_rows(lapply(names(splits), function(w) {
     summarise_window(splits[[w]], team_id, stat) |> dplyr::mutate(window = w)
   }))
+  team <- dplyr::bind_rows(team, context_rows(cur, as_of))
   team$value[!is.finite(team$value)] <- NA_real_
 
   league <- dplyr::bind_rows(lapply(names(splits), function(w) {

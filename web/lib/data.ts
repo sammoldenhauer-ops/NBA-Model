@@ -102,6 +102,7 @@ export function getStatList(): StatMeta[] {
 }
 
 // Confidence report and per-game confidence (web/scripts/confidence.ts).
+import type { AltDists } from "./altline";
 import type { GameConfidence, Validation } from "./confidence";
 export type ConfidenceFile = {
   generated_at: string;
@@ -111,7 +112,7 @@ export type ConfidenceFile = {
   accuracy: Record<string, number>;
   bands: { margin: number[]; total: number[] }[];
 };
-export type ConfidenceGames = { model_hash: string; games: Record<string, GameConfidence> };
+export type ConfidenceGames = { model_hash: string; games: Record<string, GameConfidence>; alt_spread?: AltDists };
 export function getConfidence(): ConfidenceFile | null {
   return readJson<ConfidenceFile>("confidence.json");
 }

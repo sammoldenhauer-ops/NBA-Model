@@ -27,6 +27,9 @@ CONFIG <- list(
   # Number of games in the "last N" window.
   last_n = 3,
 
+  # ESPN team ids in the Eastern Conference (the rest are West), for conference seeds.
+  east_team_ids = c("1", "2", "4", "5", "8", "11", "14", "15", "17", "18", "19", "20", "27", "28", "30"),
+
   # Output directory for the website JSON (relative to repo root).
   out_dir = "web/public/data"
 )
