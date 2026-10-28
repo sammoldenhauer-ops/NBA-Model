@@ -121,6 +121,17 @@ export default function ConfidencePage() {
       <p className="muted small">
         Bands on each game (e.g. ±9/16) mean half of past games landed within the first number of the sheet&apos;s projected margin, and 80% within the second.
       </p>
+      {c.late_favourite && (
+        <div className="card conf-card">
+          <h3>Late-season rule</h3>
+          <p className="small">
+            In the last ~2 weeks of the regular season (both teams 72+ games), the stats miss tanking and resting and the sheet&apos;s disagreements with the
+            book lose. Favourites of {c.late_favourite.min_spread}+ points covered <b>{(c.late_favourite.rate * 100).toFixed(1)}%</b> of {c.late_favourite.n} games
+            ({c.late_favourite.per_season.map((x) => `${x.season - 1}-${String(x.season).slice(2)}: ${(x.rate * 100).toFixed(0)}% of ${x.n}`).join(", ")}).
+            In that window the ATS pick switches to the favourite, labelled &quot;late-season favourite&quot;.
+          </p>
+        </div>
+      )}
 
       {w && (
         <>

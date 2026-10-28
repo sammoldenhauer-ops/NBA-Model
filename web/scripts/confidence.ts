@@ -15,7 +15,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { buildAltDist, fitScale, modelCentre, type AltDists } from "../lib/altline";
+import { buildAltDist, fitScale, isLateSeason, modelCentre, type AltDists } from "../lib/altline";
 import { fitLogit, predictLogit, type Calibration, type GameConfidence, type Measure, type Validation } from "../lib/confidence";
 import type { Slate } from "../lib/data";
 import { scoreGame, slateSource, type SheetModel } from "../lib/sheet";
@@ -168,6 +168,24 @@ const prob = (key: Measure | "winnerNoLine", x: number[]) => {
   const f = finals.get(key)!;
   return f.skill ? predictLogit(f.m, x) : null;
 };
+// ---- late-season rule: favourites of 4+ against the spread ------------------------------
+// In the last ~2 weeks of the regular season the stats miss tanking and resting, and the
+// favourite has covered more often in every season. No fitted parameters beyond the 4-point
+// threshold; the rule only switches on if each season alone beat break-even.
+const LATE_MIN = 4;
+const lateFav = (g: GameFeatures) => isLateSeason(g.homeGames, g.awayGames) && g.spread != null && Math.abs(g.spread) >= LATE_MIN;
+const favCovers = (g: GameFeatures) => { const c = g.finalHome! - g.finalAway! + g.spread!; return c === 0 ? null : (c > 0) === (g.spread! < 0); };
+const lateGames = fitGames.filter((g) => lateFav(g) && favCovers(g) != null);
+const rateOf = (xs: GameFeatures[]) => xs.filter((g) => favCovers(g)).length / xs.length;
+const late_favourite = {
+  min_spread: LATE_MIN, n: lateGames.length, rate: rateOf(lateGames),
+  per_season: seasons.map((s) => { const xs = lateGames.filter((g) => g.season === s); return { season: s, n: xs.length, rate: rateOf(xs) }; }),
+  worst: 0,
+};
+late_favourite.worst = Math.min(...late_favourite.per_season.map((x) => x.rate));
+// Only used if every season on its own cleared break-even at standard odds (52.4%).
+const lateSkill = late_favourite.worst > 0.524;
+
 const perGame: Record<string, GameConfidence> = {};
 for (const g of all.filter((x) => slateIds.has(x.game_id))) {
   const hasProj = g.projHome != null;
@@ -184,6 +202,7 @@ for (const g of all.filter((x) => slateIds.has(x.game_id))) {
       p: atsP == null ? (g.spread != null && hasProj ? finals.get("ats")!.base : null) : Math.max(atsP, 1 - atsP),
       skill: atsSkill,
     },
+    ...(lateFav(g) && lateSkill ? { ats: { side: g.spread! < 0 ? "home" as const : "away" as const, edge: g.spread != null && hasProj ? edge(g) : null, p: late_favourite.rate, skill: true, rule: "late-season favourite" } } : {}),
     ou: {
       side: ouP == null ? (g.total != null && hasProj && tEdge(g) !== 0 ? (tEdge(g) > 0 ? "over" : "under") : null) : ouP >= 0.5 ? "over" : "under",
       edge: g.total != null && hasProj ? tEdge(g) : null,
@@ -207,7 +226,7 @@ const accuracy = {
   market_margin_mae: mean(withLine.map((g) => Math.abs(g.finalHome! - g.finalAway! + g.spread!))),
   market_total_mae: mean(withLine.map((g) => Math.abs(g.finalHome! + g.finalAway! - g.total!))),
 };
-fs.writeFileSync(path.join(DATA, "confidence.json"), JSON.stringify({ generated_at: new Date().toISOString(), model_hash, seasons, validation, accuracy, bands }, null, 1) + "\n");
+fs.writeFileSync(path.join(DATA, "confidence.json"), JSON.stringify({ generated_at: new Date().toISOString(), model_hash, seasons, validation, accuracy, bands, late_favourite }, null, 1) + "\n");
 fs.writeFileSync(path.join(DATA, "confidence_games.json"), JSON.stringify({ model_hash, games: perGame, alt_spread }) + "\n");
 const cols: (keyof GameFeatures)[] = ["season", "date", "game_id", "away", "home", "projAway", "projHome", "finalAway", "finalHome", "spread", "total", "awayGames", "homeGames", "cover10", "recordLuck", "shot3made", "shot3allowed"];
 fs.writeFileSync(path.join(DATA, "backtest.csv"), [cols.join(","), ...done.map((g) => cols.map((c) => g[c] ?? "").join(","))].join("\n") + "\n");

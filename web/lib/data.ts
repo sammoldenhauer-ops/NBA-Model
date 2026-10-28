@@ -111,7 +111,10 @@ export type ConfidenceFile = {
   validation: Validation[];
   accuracy: Record<string, number>;
   bands: { margin: number[]; total: number[] }[];
+  late_favourite?: LateFavourite;
 };
+// Late-season rule: favourites of 4+ against the spread (scripts/confidence.ts).
+export type LateFavourite = { min_spread: number; n: number; rate: number; worst: number; per_season: { season: number; n: number; rate: number }[] };
 export type ConfidenceGames = { model_hash: string; games: Record<string, GameConfidence>; alt_spread?: AltDists };
 export function getConfidence(): ConfidenceFile | null {
   return readJson<ConfidenceFile>("confidence.json");

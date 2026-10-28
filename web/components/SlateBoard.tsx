@@ -36,6 +36,7 @@ const KEY = "nba-slate-filters-v1";
 
 const pct = (p: number | null | undefined) => (p == null ? "—" : `${(p * 100).toFixed(1)}%`);
 const tone = (p: number | null | undefined, skill = true) => (p == null || !skill ? "conf-lo" : p >= 0.6 ? "conf-hi" : p >= 0.53 ? "conf-mid" : "conf-lo");
+const LATE_FAV = "Late-season rule: in the last ~2 weeks of the regular season, favourites of 4+ points covered 59% on 2023-26 (57-64% each season). The stats miss tanking and resting; this is the book side, not the model's.";
 const NO_EDGE = "No proven edge: on held-out seasons this call hit at its base rate regardless of the edge, so the score is that base rate.";
 const num = (s: string) => (s.trim() === "" || !Number.isFinite(Number(s)) ? null : Number(s));
 
@@ -79,8 +80,8 @@ function Picks({ c }: { c: Card }) {
       </div>
       {conf && (
         <div className="pick-chips">
-          <span className={`chip ${tone(conf.ats.p, conf.ats.skill)}`} title={`${conf.ats.edge != null ? `Model vs line: ${conf.ats.edge > 0 ? "+" : ""}${conf.ats.edge.toFixed(1)} pts. ` : ""}${conf.ats.skill ? "" : NO_EDGE}`}>
-            ATS {conf.ats.side ? `${abbr(conf.ats.side)}${atsLine != null ? ` ${fmtSpread(atsLine)}` : ""}` : "—"} <b>{pct(conf.ats.p)}</b>{!conf.ats.skill && " · no edge"}
+          <span className={`chip ${tone(conf.ats.p, conf.ats.skill)}`} title={conf.ats.rule ? LATE_FAV : `${conf.ats.edge != null ? `Model vs line: ${conf.ats.edge > 0 ? "+" : ""}${conf.ats.edge.toFixed(1)} pts. ` : ""}${conf.ats.skill ? "" : NO_EDGE}`}>
+            ATS {conf.ats.side ? `${abbr(conf.ats.side)}${atsLine != null ? ` ${fmtSpread(atsLine)}` : ""}` : "—"} <b>{pct(conf.ats.p)}</b>{!conf.ats.skill && " · no edge"}{conf.ats.rule && " · late-season favourite"}
           </span>
           <span className={`chip ${tone(conf.ou.p, conf.ou.skill)}`} title={`${conf.ou.edge != null ? `Model vs line: ${conf.ou.edge > 0 ? "+" : ""}${conf.ou.edge.toFixed(1)} pts. ` : ""}${conf.ou.skill ? "" : NO_EDGE}`}>
             {conf.ou.side ? (conf.ou.side === "over" ? "Over" : "Under") : "O/U —"} <b>{pct(conf.ou.p)}</b>{!conf.ou.skill && " · no edge"}

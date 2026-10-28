@@ -7,7 +7,7 @@ export type Measure = "ats" | "ou" | "winner";
 // Per-game output, written by the script to public/data/confidence_games.json.
 export type GameConfidence = {
   winner: { team: "home" | "away" | null; p: number | null; skill: boolean };
-  ats: { side: "home" | "away" | null; edge: number | null; p: number | null; skill: boolean };
+  ats: { side: "home" | "away" | null; edge: number | null; p: number | null; skill: boolean; rule?: string };
   ou: { side: "over" | "under" | null; edge: number | null; p: number | null; skill: boolean };
   margin_band: number[]; // +/- points, 50% and 80% of past games
   total_band: number[];
