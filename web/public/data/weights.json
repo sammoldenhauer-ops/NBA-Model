@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-10-26T15:01:58.307Z",
+ "generated_at": "2026-11-02T13:58:00.779Z",
  "seasons": [
   2024,
   2025,
@@ -17,69 +17,69 @@
    },
    "holdout_games": 47,
    "holdout_error": {
-    "schedule": 26.78723404255319,
-    "best_fixed": 28.51063829787234,
-    "current": 26.74468085106383
+    "schedule": 27.085106382978722,
+    "best_fixed": 28.574468085106382,
+    "current": 26.93617021276596
    }
   },
   {
    "min_games": 1,
    "weights": {
-    "ytd": 0,
-    "l3": 15,
-    "ha": 5,
+    "ytd": 20,
+    "l3": 0,
+    "ha": 0,
     "prior": 80
    },
    "holdout_games": 97,
    "holdout_error": {
-    "schedule": 26.38144329896907,
-    "best_fixed": 28.88659793814433,
-    "current": 25.79381443298969
+    "schedule": 26.278350515463917,
+    "best_fixed": 28.587628865979383,
+    "current": 25.77319587628866
    }
   },
   {
    "min_games": 3,
    "weights": {
-    "ytd": 25,
-    "l3": 5,
+    "ytd": 30,
+    "l3": 0,
     "ha": 10,
     "prior": 60
    },
    "holdout_games": 138,
    "holdout_error": {
-    "schedule": 26.753623188405797,
-    "best_fixed": 27.27536231884058,
-    "current": 27.492753623188406
+    "schedule": 26.934782608695652,
+    "best_fixed": 27.253623188405797,
+    "current": 27.405797101449274
    }
   },
   {
    "min_games": 6,
    "weights": {
-    "ytd": 35,
+    "ytd": 40,
     "l3": 10,
     "ha": 5,
-    "prior": 50
+    "prior": 45
    },
    "holdout_games": 177,
    "holdout_error": {
-    "schedule": 23.028248587570623,
-    "best_fixed": 23.07909604519774,
-    "current": 24.1864406779661
+    "schedule": 22.836158192090394,
+    "best_fixed": 22.847457627118644,
+    "current": 23.757062146892654
    }
   },
   {
    "min_games": 10,
    "weights": {
-    "ytd": 55,
-    "l3": 5,
-    "ha": 0,
+    "ytd": 45,
+    "l3": 10,
+    "ha": 5,
     "prior": 40
    },
    "holdout_games": 228,
    "holdout_error": {
-    "schedule": 25.728070175438596,
-    "best_fixed": 25.67105263157895,
-    "current": 27.469298245614034
+    "schedule": 25.74122807017544,
+    "best_fixed": 25.714912280701753,
+    "current": 27.18859649122807
    }
   },
   {
@@ -92,54 +92,54 @@
    },
    "holdout_games": 225,
    "holdout_error": {
-    "schedule": 26.813333333333333,
-    "best_fixed": 26.675555555555555,
-    "current": 27.537777777777777
+    "schedule": 26.608888888888888,
+    "best_fixed": 26.47111111111111,
+    "current": 27.08
    }
   },
   {
    "min_games": 20,
    "weights": {
     "ytd": 40,
-    "l3": 5,
-    "ha": 20,
+    "l3": 10,
+    "ha": 15,
     "prior": 35
    },
    "holdout_games": 444,
    "holdout_error": {
-    "schedule": 26.23873873873874,
-    "best_fixed": 26.24099099099099,
-    "current": 27.236486486486488
+    "schedule": 26.22972972972973,
+    "best_fixed": 26.213963963963963,
+    "current": 27.02027027027027
    }
   },
   {
    "min_games": 30,
    "weights": {
-    "ytd": 55,
-    "l3": 10,
+    "ytd": 45,
+    "l3": 15,
     "ha": 10,
-    "prior": 25
+    "prior": 30
    },
    "holdout_games": 674,
    "holdout_error": {
-    "schedule": 26.30415430267062,
-    "best_fixed": 26.356083086053413,
-    "current": 27.79080118694362
+    "schedule": 26.188427299703264,
+    "best_fixed": 26.19584569732938,
+    "current": 27.367952522255194
    }
   },
   {
    "min_games": 45,
    "weights": {
-    "ytd": 40,
+    "ytd": 45,
     "l3": 15,
-    "ha": 25,
-    "prior": 20
+    "ha": 10,
+    "prior": 30
    },
    "holdout_games": 681,
    "holdout_error": {
-    "schedule": 25.869309838472834,
-    "best_fixed": 26.069016152716593,
-    "current": 27.86490455212922
+    "schedule": 25.941262848751837,
+    "best_fixed": 25.970631424375917,
+    "current": 27.38619676945668
    }
   },
   {
@@ -147,27 +147,27 @@
    "weights": {
     "ytd": 55,
     "l3": 20,
-    "ha": 10,
-    "prior": 15
+    "ha": 0,
+    "prior": 25
    },
    "holdout_games": 1250,
    "holdout_error": {
-    "schedule": 26.4304,
-    "best_fixed": 26.4944,
-    "current": 27.9864
+    "schedule": 26.0592,
+    "best_fixed": 26.0448,
+    "current": 27.064
    }
   }
  ],
  "overall": {
   "games": 3961,
-  "schedule": 26.13456197929816,
-  "best_fixed": 26.28932087856602,
-  "current": 27.537490532693763,
+  "schedule": 25.996970462004544,
+  "best_fixed": 26.0734662963898,
+  "current": 27.005301691492047,
   "best_fixed_weights": [
-   40,
-   10,
+   35,
    15,
-   35
+   10,
+   40
   ]
  }
 }
